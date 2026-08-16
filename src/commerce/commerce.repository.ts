@@ -3,7 +3,7 @@ import { commerce, type Commerce, type NewCommerce } from '../db/schemas/commerc
 import { db } from '../db/connection.ts'
 
 type UpdateCommerceData = Partial<Omit<NewCommerce, 'nit' | 'createdAt'>>
-type CommerceSearchFilters = {
+export type CommerceSearchFilters = {
   shortName?: string
   legalName?: string
   address?: string

@@ -1,7 +1,6 @@
 import type { NewCommerce } from "../db/schemas/commerce.schema.ts"
 import { BadRequestError, ConflictError, NotFoundError } from "../shared/errors.ts"
-import { commerceRepository } from "./commerce.repository.ts"
-
+import { commerceRepository, type CommerceSearchFilters } from "./commerce.repository.ts"
 
 export const commerceService = {
   async getAll() {
@@ -12,6 +11,10 @@ export const commerceService = {
     const row = await commerceRepository.findByNit(nit)
     if (!row) throw new NotFoundError('Commerce not found')
     return row
+  },
+
+  async searchCommerce(filters: CommerceSearchFilters) {
+      return commerceRepository.search(filters)
   },
 
   async create(data: NewCommerce) {
