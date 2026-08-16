@@ -3,6 +3,7 @@ import { clients, type Client, type NewClient, type ResponseClient } from '../db
 import { db } from '../db/connection.ts'
 
 const { password: _, ...clientResponseColumns } = getTableColumns(clients)
+type UpdateClientData = Partial<Omit<NewClient, 'id' | 'createdAt'>>
 
 // To filter clients in "search" method
 export interface ClientSearchFilters {
@@ -46,5 +47,15 @@ export const clientsRepository = {
     const clientResult = await db.insert(clients).values(data).returning()
     const {password: _, ...client} = clientResult[0]
     return client
+  },
+
+  async update(id: string, data: UpdateClientData): Promise<Client | undefined> {
+    const [client] = await db.update(clients).set(data).where(eq(clients.id, id)).returning()
+    return client
+  },
+
+  async delete(id: string): Promise<boolean> {
+    const result = await db.delete(clients).where(eq(clients.id, id)).returning({ id: clients.id })
+    return result.length > 0
   },
 }
