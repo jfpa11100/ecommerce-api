@@ -20,7 +20,11 @@ export const clientsController = {
   },
 
   async queryClients(req: Request, res: Response, next: NextFunction) {
-    
+    try {
+      res.json(await clientsService.searchClient(req.body ?? {}))
+    } catch (err) {
+      next(err)
+    }
   },
 
   async create(req: Request, res: Response, next: NextFunction) {
