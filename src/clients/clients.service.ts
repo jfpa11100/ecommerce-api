@@ -20,7 +20,6 @@ export const clientsService = {
     const existing = await clientsRepository.findByEmail(data.email)
     if (existing) throw new ConflictError('El email ya está registrado')
     const hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS)
-    const { password: _, ...clientNoPassword } = await clientsRepository.create({ ...data, password: hashedPassword })
-    return clientNoPassword
+    return clientsRepository.create({ ...data, password: hashedPassword })
   },
 }
