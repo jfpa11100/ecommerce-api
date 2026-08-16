@@ -2,9 +2,9 @@
 
 # 🛍️ E-commerce API
 
-### API RESTful para gestión de Clientes, Comercios y Productos
+### RESTful API for managing Clients, Commerces and Products
 
-Proyecto desarrollado para la línea de énfasis **DevOps** — Universidad de Medellín
+Project developed for the **DevOps** asignature — Universidad de Medellín
 
 [![Node.js](https://img.shields.io/badge/Node.js-≥20.19-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -12,78 +12,71 @@ Proyecto desarrollado para la línea de énfasis **DevOps** — Universidad de M
 [![Drizzle ORM](https://img.shields.io/badge/Drizzle_ORM-C5F74F?logo=drizzle&logoColor=black)](https://orm.drizzle.team/)
 [![Supabase](https://img.shields.io/badge/Supabase-Postgres-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
 [![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-<!-- COMPLETAR: badge de tu herramienta CI/CD, por ejemplo GitHub Actions, GitLab CI, CircleCI -->
-<!-- ![CI/CD](https://img.shields.io/badge/CI%2FCD-XXXX-blue) -->
 
-[Ver Demo (Producción)](https://ecommerce-backend-yi4o.onrender.com/) · [Repositorio](https://github.com/jfpa11100/ecommerce-backend)
-<!-- COMPLETAR: reemplazar los "#" con los links reales -->
+[View Demo (Production)](https://ecommerce-backend-yi4o.onrender.com/) · [Repository](https://github.com/jfpa11100/ecommerce-backend)
 
 </div>
 
 ---
 
-## 📋 Tabla de contenido
+## 📋 Table of contents
 
-- [Descripción](#-descripción)
-- [Objetivo académico](#-objetivo-académico)
-- [Ambientes](#-ambientes)
-- [Pipelines CI/CD](#-pipelines-cicd)
-- [Reglas de calidad (Quality Gates)](#-reglas-de-calidad-quality-gates)
+- [Description](#-description)
+- [Academic objective](#-academic-objective)
+- [Environments](#-environments)
+- [CI/CD Pipelines](#-cicd-pipelines)
+- [Quality rules (Quality Gates)](#-quality-rules-quality-gates)
 - [Docker](#-docker)
-- [Cómo correr el proyecto localmente](#-cómo-correr-el-proyecto-localmente)
-- [Testing y cobertura](#-testing-y-cobertura)
-- [Autor](#-autor)
+- [How to run the project locally](#-how-to-run-the-project-locally)
+- [Testing and coverage](#-testing-and-coverage)
+- [Author](#-author)
 
 ---
 
-## 📖 Descripción
+## 📖 Description
 
-**E-commerce API** es una API RESTful construida con **Express + TypeScript**, que gestiona tres entidades relacionadas — **Clientes**, **Comercios** y **Productos** — usando **PostgreSQL** (alojado en **Supabase**) como base de datos y **Drizzle ORM** como capa de acceso a datos.
+**E-commerce API** is a RESTful API built with **Express + TypeScript**, which manages three related entities — **Clients**, **Commerces** and **Products** — using **PostgreSQL** (hosted on **Supabase**) as the database and **Drizzle ORM** as the data access layer.
 
-El proyecto sigue una arquitectura en capas (**Router → Controller → Service → Repository**) que separa responsabilidades, facilita el testing y permite evolucionar la infraestructura de datos sin afectar la lógica de negocio.
+The project follows a layered architecture (**Router → Controller → Service → Repository**) that separates responsibilities, makes testing easier, and allows the data infrastructure to evolve without affecting the business logic.
 
-> Este repositorio es la implementación práctica de la línea de énfasis **DevOps**, por lo que además del código de la aplicación, incluye toda la infraestructura de **CI/CD, contenedores, ambientes separados y control de calidad automatizado**.
-
-<!-- COMPLETAR: agrega 1-2 líneas contando el contexto/historia del proyecto si aplica -->
+> This repository is the practical implementation of the **DevOps** emphasis track, so in addition to the application code, it includes all the **CI/CD infrastructure, containers, separate environments, and automated quality control**.
 
 ---
 
-## 🎯 Objetivo académico
+## 🎯 Academic objective
 
-Desplegar una aplicación productiva cumpliendo con las prácticas fundamentales de DevOps:
+Deploy a production-ready application while following core DevOps practices:
 
-| Requisito | Estado |
+| Requirement | Status |
 |---|:---:|
-| Versionado en Git con historial significativo | ✅ |
-| Commits estandarizados con GitMoji | ✅ |
-| API RESTful completa (incluye verbo `QUERY`) | ✅ |
-| Mínimo 3 entidades con persistencia real | ✅ |
-| 2 ambientes independientes (Pruebas / Producción) | ✅ |
-| pipeline CI/CD | ✅ |
-| Quality gates de cobertura y pruebas | ✅ |
-| Contenerización con Docker | ✅ |
+| Git versioning with a meaningful history | ✅ |
+| Standardized commits with GitMoji | ✅ |
+| Complete RESTful API (includes the `QUERY` verb) | ✅ |
+| At least 3 entities with real persistence | ✅ |
+| 2 independent environments (Testing / Production) | ✅ |
+| CI/CD pipeline | ✅ |
+| Coverage and testing quality gates | ✅ |
+| Containerization with Docker | ✅ |
 
 ---
 
-- **Routes**: definen los endpoints y el verbo HTTP (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `QUERY`).
-- **Controllers**: reciben la petición HTTP, delegan al service y devuelven la respuesta.
-- **Services**: contienen las reglas de negocio (validaciones, orquestación).
-- **Repositories**: única capa que conoce el ORM y ejecuta las queries contra la base de datos.
-
-<!-- COMPLETAR: si tienes un diagrama de arquitectura en imagen (draw.io, excalidraw, etc.), reemplaza el diagrama ASCII con la imagen -->
+- **Routes**: define the endpoints and the HTTP verb (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `QUERY`).
+- **Controllers**: receive the HTTP request, delegate to the service, and return the response.
+- **Services**: contain the business rules (validations, orchestration).
+- **Repositories**: the only layer that knows the ORM and runs queries against the database.
 
 ---
 
-## 🛠️ Stack tecnológico
+## 🛠️ Tech stack
 
-| Categoría | Tecnología |
+| Category | Technology |
 |---|---|
-| Runtime | Node.js (≥ 20.19.3 &lt;21 ó ≥ 22.2.0) |
-| Lenguaje | TypeScript |
-| Framework HTTP | Express 5 |
+| Runtime | Node.js (≥ 20.19.3 &lt;21 or ≥ 22.2.0) |
+| Language | TypeScript |
+| HTTP Framework | Express 5 |
 | ORM | Drizzle ORM |
-| Base de datos | PostgreSQL (Supabase) |
-| Contenerización | Docker & Docker Compose |
+| Database | PostgreSQL (Supabase) |
+| Containerization | Docker & Docker Compose |
 | Testing | Jest |
 | CI/CD | GitHub Actions |
 | Hosting | Render |
@@ -91,131 +84,118 @@ Desplegar una aplicación productiva cumpliendo con las prácticas fundamentales
 ---
 
 
-## 🌍 Ambientes
+## 🌍 Environments
 
-El proyecto cuenta con **dos ambientes completamente independientes**, cada uno con su propia base de datos, URL de despliegue y variables de entorno/secrets.
+The project has **two fully independent environments**, each with its own database, deployment URL, and environment variables/secrets.
 
-| | 🧪 Pruebas | 🚀 Producción |
+| | 🧪 Testing | 🚀 Production |
 |---|---|---|
 | **URL** | https://test-ecommerce-3jtf.onrender.com | https://ecommerce-backend-yi4o.onrender.com/ |
-| **Base de datos** | Supabase |
-| **Rama que despliega** | `test-environment` | `main` |
-| **Cobertura mínima exigida** | ≥ 60% | ≥ 85% |
-| **Secrets** | Gestionados en <!-- COMPLETAR: herramienta CI/CD --> (scope Pruebas) | Gestionados en <!-- COMPLETAR: herramienta CI/CD --> (scope Producción) |
+| **Database** | Supabase |
+| **Deploying branch** | `test-environment` | `main` |
+| **Minimum coverage required** | ≥ 60% | ≥ 85% |
 
-> Ambos ambientes se despliegan de forma **automática e independiente**: un cambio en la rama de pruebas nunca afecta producción, y viceversa.
+> Both environments deploy **automatically and independently**: a change on the testing branch never affects production, and vice versa.
 
 ---
 
-## ⚙️ Pipelines CI/CD
+## ⚙️ CI/CD Pipelines
 
-Se implementaron **dos pipelines independientes** en <!-- COMPLETAR: nombre de la herramienta SaaS CI/CD --> :
+**Two independent pipelines** were implemented on Github Actions :
 
 ```
-🧪 Pipeline de Pruebas                    🚀 Pipeline de Producción
+🧪 Testing Pipeline                       🚀 Production Pipeline
 ──────────────────────                    ──────────────────────
-1️⃣  Instalar dependencias                 1️⃣  Instalar dependencias
+1️⃣  Install dependencies                  1️⃣  Install dependencies
 2️⃣  Build                                 2️⃣  Build
-3️⃣  Ejecutar tests                        3️⃣  Ejecutar tests
-4️⃣  Validar cobertura (≥ 60%)             4️⃣  Validar cobertura (≥ 85%)
-5️⃣  Deploy a ambiente de Pruebas          5️⃣  Deploy a ambiente de Producción
+3️⃣  Run tests                             3️⃣  Run tests
+4️⃣  Validate coverage (≥ 60%)             4️⃣  Validate coverage (≥ 85%)
+5️⃣  Deploy to Testing environment         5️⃣  Deploy to Production environment
 ```
 
-Cada etapa es una **puerta de calidad**: si falla cualquier paso, el pipeline se detiene inmediatamente y **no se despliega nada**.
-
-<!-- COMPLETAR: agrega badges de estado de cada pipeline aquí, por ejemplo:
-[![Pipeline Pruebas](URL_DEL_BADGE)](URL_DEL_PIPELINE)
-[![Pipeline Producción](URL_DEL_BADGE)](URL_DEL_PIPELINE)
--->
-
-<!-- COMPLETAR: si quieres, agrega aquí un diagrama o captura de pantalla del pipeline corriendo -->
+Each stage is a **quality gate**: if any step fails, the pipeline stops immediately and **nothing gets deployed**.
 
 ---
 
-## ✅ Reglas de calidad (Quality Gates)
+## ✅ Quality rules (Quality Gates)
 
-| Regla | Pruebas | Producción |
+| Rule | Testing | Production |
 |---|:---:|:---:|
-| El pipeline se detiene si falla alguna prueba | ✅ | ✅ |
-| Cobertura mínima de código | **60%** | **85%** |
-| Pruebas con errores permitidas | **0** | **0** |
-| Despliegue automático si se cumplen las reglas | ✅ | ✅ |
-
-<!-- COMPLETAR: si usas una herramienta de quality gate como SonarCloud/SonarQube, agrega aquí el badge y el link al dashboard -->
+| The pipeline stops if any test fails | ✅ | ✅ |
+| Minimum code coverage | **60%** | **85%** |
+| Allowed failing tests | **0** | **0** |
+| Automatic deployment if rules are met | ✅ | ✅ |
 
 ---
 
 ## 🐳 Docker
 
-El proyecto está completamente contenerizado con `Dockerfile` (para la API) y `docker-compose.yml` (para levantar API + base de datos juntas en local).
+The project is fully containerized with a `Dockerfile` (for the API) and `docker-compose.yml` (to run the API + database together locally).
 
 ```bash
-# Levantar API + base de datos
+# Start API + database
 docker compose up --build
 
-# Detener y limpiar contenedores
+# Stop and clean up containers
 docker compose down
 ```
 
-<!-- COMPLETAR: si tu docker-compose expone puertos específicos o servicios adicionales (ej. Adminer, pgAdmin), documéntalos aquí -->
-
 ---
 
-## 🔐 Variables de entorno
+## 🔐 Environment variables
 
-Copia `.env.example` a `.env` y completa los valores:
+Copy `.env.example` to `.env` and  the values:
 
 ```env
-# Base de datos - conexión directa (usada para migraciones)
+# Database - direct connection (used for migrations)
 DATABASE_URL=
 IS_PRODUCTION=
 ```
 
 ---
 
-## 💻 Cómo correr el proyecto localmente
+## 💻 How to run the project locally
 
 ```bash
-# 1. Clonar el repositorio
+# 1. Clone the repository
 git clone https://github.com/jfpa11100/ecommerce-backend
 
-# 2. Instalar dependencias
+# 2. Install dependencies
 pnpm install
 
-# 3. Configurar variables de entorno
+# 3. Set up environment variables
 cp .env.example .env
 
-# 4. Levantar el servidor en modo desarrollo
+# 4. Start the development server
 npm run dev
 ```
 
-La API quedará disponible en `http://localhost:3000`.
+The API will be available at `http://localhost:3000`.
 
 ---
 
-## 🧪 Testing y cobertura
+## 🧪 Testing and coverage
 
 ```bash
-# Ejecutar pruebas
+# Run tests
 npm run test
 
-# Ejecutar pruebas con reporte de cobertura
+# Run tests with a coverage report
 npm run test:coverage
 ```
 
 ---
 
 
-## 👥 Autor
+## 👥 Author
 
-<!-- COMPLETAR: nombres, usuarios de GitHub y/o roles -->
-| Nombre | GitHub | Rol |
+| Name | GitHub | Role |
 |---|---|---|
-| Juan Felipe Palacio | github.com/jfpa11100 | Desarrollador |
+| Juan Felipe Palacio | github.com/jfpa11100 | Developer |
 
-**Universidad:** Universidad de Medellín
-**Curso / Énfasis:** DevOps
+**University:** Universidad de Medellín
+**Course / Emphasis:** DevOps
 
-Hecho con ☕ y muchos commits con GitMoji
+Made with ☕ and lots of commits with GitMoji
 
 </div>
