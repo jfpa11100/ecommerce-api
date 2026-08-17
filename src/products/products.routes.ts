@@ -5,6 +5,7 @@ const productsRouter = Router()
 
 productsRouter.get('/', productsController.getAll)
 productsRouter.get('/:id', productsController.getById)
+productsRouter.query!('/', productsController.search)
 productsRouter.post('/', productsController.create)
 productsRouter.put('/:id', productsController.replace)
 productsRouter.patch('/:id', productsController.patch)

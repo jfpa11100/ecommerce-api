@@ -28,6 +28,14 @@ export const productsController = {
     }
   },
 
+  async search(req: Request, res: Response, next: NextFunction) {
+    try {
+      res.json(await productsService.search(req.body ?? {}))
+    } catch (err) {
+      next(err)
+    }
+  },
+
   async create(req: Request, res: Response, next: NextFunction) {
     try {
       res.status(201).json(await productsService.create(req.body));

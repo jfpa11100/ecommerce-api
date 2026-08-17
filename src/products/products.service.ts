@@ -1,7 +1,7 @@
 import { commerceRepository } from "../commerce/commerce.repository.ts"
 import type { NewProduct } from "../db/schemas/product.schema.ts"
 import { BadRequestError, NotFoundError } from "../shared/errors.ts"
-import { productsRepository } from "./products.repository.ts"
+import { productsRepository, type ProductSearchFilters } from "./products.repository.ts"
 
 export const productsService = {
   async getAll() {
@@ -18,6 +18,31 @@ export const productsService = {
     const commerceExists = await commerceRepository.findByNit(commerceNit)
     if (!commerceExists) throw new NotFoundError('Commerce not found')
     return productsRepository.findByCommerce(commerceNit)
+  },
+
+  async search(filters: ProductSearchFilters) {
+    if (
+      filters.minPrice !== undefined &&
+      filters.maxPrice !== undefined &&
+      filters.minPrice > filters.maxPrice
+    ) {
+      throw new BadRequestError("minPrice can't be greater than maxPrice")
+    }
+
+    if (
+      filters.minAmountAvailable !== undefined &&
+      filters.maxAmountAvailable !== undefined &&
+      filters.minAmountAvailable > filters.maxAmountAvailable
+    ) {
+      throw new BadRequestError("minAmountAvailable can't be greater than maxAmountAvailable")
+    }
+
+    if (filters.commerceNit) {
+      const commerceExists = await commerceRepository.findByNit(filters.commerceNit)
+      if (!commerceExists) throw new BadRequestError('The commerce with the provided NIT does not exist')
+    }
+
+    return productsRepository.search(filters)
   },
 
   async create(data: NewProduct) {
