@@ -35,4 +35,32 @@ export const productsController = {
       next(err);
     }
   },
+
+  async replace(req: Request, res: Response, next: NextFunction) {
+    try {
+      const id = getIdParam(req.params.id);
+      res.json(await productsService.replace(id, req.body));
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async patch(req: Request, res: Response, next: NextFunction) {
+    try {
+      const id = getIdParam(req.params.id);
+      res.json(await productsService.patch(id, req.body));
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async delete(req: Request, res: Response, next: NextFunction) {
+    try {
+      const id = getIdParam(req.params.id);
+      await productsService.delete(id);
+      res.status(204).send();
+    } catch (err) {
+      next(err);
+    }
+  },
 };

@@ -27,4 +27,24 @@ export const productsService = {
     return productsRepository.create(data)
   },
 
+  async replace(id: string, data: Required<Omit<NewProduct, 'id' | 'createdAt'>>) {
+    const product = await productsRepository.update(id, data)
+    if (!product) throw new NotFoundError('Product not found')
+    return product
+  },
+
+  async patch(id: string, data: Partial<Omit<NewProduct, 'id' | 'createdAt'>>) {
+    if (Object.keys(data).length === 0) {
+      throw new BadRequestError('There are no fields to update')
+    }
+    const product = await productsRepository.update(id, data)
+    if (!product) throw new NotFoundError('Product not found')
+    return product
+  },
+
+  async delete(id: string) {
+    const deleted = await productsRepository.delete(id)
+    if (!deleted) throw new NotFoundError('Product not found')
+  },
+
 }
