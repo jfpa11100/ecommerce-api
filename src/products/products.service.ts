@@ -1,5 +1,6 @@
 import { commerceRepository } from "../commerce/commerce.repository.ts"
-import { NotFoundError } from "../shared/errors.ts"
+import type { NewProduct } from "../db/schemas/product.schema.ts"
+import { BadRequestError, NotFoundError } from "../shared/errors.ts"
 import { productsRepository } from "./products.repository.ts"
 
 export const productsService = {
@@ -17,6 +18,13 @@ export const productsService = {
     const commerceExists = await commerceRepository.findByNit(commerceNit)
     if (!commerceExists) throw new NotFoundError('Commerce not found')
     return productsRepository.findByCommerce(commerceNit)
+  },
+
+  async create(data: NewProduct) {
+    const commerceExists = await commerceRepository.findByNit(data.commerceNit)
+    if (!commerceExists) throw new BadRequestError('Commerce with NIT not found')
+    if (Number(data.price) <= 0) throw new BadRequestError('Price must be greater than 0')
+    return productsRepository.create(data)
   },
 
 }

@@ -1,5 +1,5 @@
 import { db } from "../db/connection.ts"
-import { products } from "../db/schemas/product.schema.ts"
+import { products, type NewProduct, type Product } from "../db/schemas/product.schema.ts"
 import { eq } from "drizzle-orm"
 
 export const productsRepository = {
@@ -14,6 +14,11 @@ export const productsRepository = {
   async findById(id: string) {
     const [product] = await db.select().from(products).where(eq(products.id, id))
     return product
+  },
+
+  async create(data: NewProduct): Promise<Product> {
+    const [row] = await db.insert(products).values(data).returning()
+    return row
   },
 
 }
