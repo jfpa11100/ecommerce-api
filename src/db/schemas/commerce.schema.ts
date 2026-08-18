@@ -1,9 +1,9 @@
-import { pgSchema, pgTable, text, timestamp, varchar } from 'drizzle-orm/pg-core'
+import { pgSchema, pgTable, text, timestamp, integer } from 'drizzle-orm/pg-core'
 
 const tab = process.env.IS_PRODUCTION === 'true' ? pgTable : pgSchema('test_db').table as unknown as typeof pgTable
 
 export const commerce = tab('commerce', {
-  nit: varchar('nit', { length: 10 }).primaryKey(),
+  nit: integer('nit').primaryKey(),
   legalName: text('legal_name').notNull(),
   shortName: text('short_name').notNull(),
   address: text('address'),
