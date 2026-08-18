@@ -7,7 +7,7 @@ type UpdateProductData = Partial<Omit<NewProduct, 'id' | 'createdAt'>>
 export interface ProductSearchFilters {
   shortName?: string
   fullName?: string
-  commerceNit?: string
+  commerceNit?: number
   minPrice?: number
   maxPrice?: number
   minAmountAvailable?: number
@@ -19,7 +19,7 @@ export const productsRepository = {
     return db.select().from(products)
   },
 
-  async findByCommerce(commerceNit: string) {
+  async findByCommerce(commerceNit: number) {
     return db.select().from(products).where(eq(products.commerceNit, commerceNit))
   },    
 
