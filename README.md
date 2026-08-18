@@ -77,7 +77,7 @@ Deploy a production-ready application while following core DevOps practices:
 | ORM | Drizzle ORM |
 | Database | PostgreSQL (Supabase) |
 | Containerization | Docker & Docker Compose |
-| Testing | Jest |
+| Testing | Vitest |
 | CI/CD | GitHub Actions |
 | Hosting | Render |
 
