@@ -1,196 +1,433 @@
-import { afterAll, beforeEach, describe, expect, it } from 'vitest'
-import { eq } from 'drizzle-orm'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from '../../db/connection.ts'
-import { commerce, type NewCommerce } from '../../db/schemas/commerce.schema.ts'
-import { commerceRepository } from '../../commerce/commerce.repository.ts'
+import { commerce } from '../../db/schemas/commerce.schema.ts'
+import { commerceRepository } from '../commerce.repository.ts'
 
-const baseCommerce = (overrides: Partial<NewCommerce> = {}): NewCommerce => ({
-  nit: 123456789,
-  legalName: 'ACME Corp',
-  shortName: 'ACME',
-  address: 'Main St 123',
-  contactNumber: '3000000000',
-  email: 'contact@acme.com',
-  ...overrides,
-})
-
-async function cleanTable() {
-  await db.delete(commerce)
-}
-
-beforeEach(async () => {
-  await cleanTable()
-})
-
-afterAll(async () => {
-  await cleanTable()
-})
-
-describe('commerceRepository.findAll', () => {
-  it('returns an empty array when there are no commerces', async () => {
-    const result = await commerceRepository.findAll()
-    expect(result).toEqual([])
-  })
-
-  it('returns all commerces', async () => {
-    await db.insert(commerce).values([
-      baseCommerce({ nit: 111111111, email: 'one@acme.com' }),
-      baseCommerce({ nit: 222222222, email: 'two@acme.com', legalName: 'Second Corp' }),
-    ])
-
-    const result = await commerceRepository.findAll()
-
-    expect(result).toHaveLength(2)
-    expect(result.map((c) => c.nit).sort()).toEqual([111111111, 222222222])
-  })
-})
-
-describe('commerceRepository.findByNit', () => {
-  it('returns the commerce when it exists', async () => {
-    await db.insert(commerce).values(baseCommerce({ nit: 123456789 }))
-
-    const result = await commerceRepository.findByNit(123456789)
-
-    expect(result).toBeDefined()
-    expect(result?.nit).toBe(123456789)
-    expect(result?.legalName).toBe('ACME Corp')
-  })
-
-  it('returns undefined when the nit does not exist', async () => {
-    const result = await commerceRepository.findByNit(999999999)
-    expect(result).toBeUndefined()
-  })
-})
-
-describe('commerceRepository.search', () => {
+describe('Commerce Repository Integration Tests', () => {
   beforeEach(async () => {
-    await db.insert(commerce).values([
-      baseCommerce({
-        nit: 111111111,
-        legalName: 'ACME Corp',
-        shortName: 'ACME',
-        address: 'Main St 123',
-        email: 'contact@acme.com',
-        createdAt: new Date('2023-01-10'),
-      }),
-      baseCommerce({
-        nit: 222222222,
-        legalName: 'ACME Distribution',
-        shortName: 'ACME Dist',
-        address: 'Second Ave 45',
-        email: 'sales@acmedist.com',
-        createdAt: new Date('2023-06-15'),
-      }),
-      baseCommerce({
-        nit: 333333333,
-        legalName: 'Other Company',
-        shortName: 'OtherCo',
-        address: 'Third Blvd 9',
-        email: 'info@otherco.com',
-        createdAt: new Date('2024-02-20'),
-      }),
-    ])
+    await db.delete(commerce)
   })
 
-  it('returns all commerces when no filters are provided', async () => {
-    const result = await commerceRepository.search({})
-    expect(result).toHaveLength(3)
-  })
+  describe('findAll', () => {
+    it('should return all commerces', async () => {
+      await commerceRepository.create({
+        nit: 100000001,
+        legalName: 'Acme Corporation S.A.S.',
+        shortName: 'Acme',
+        address: '123 Main Street',
+        contactNumber: '3000000001',
+        email: 'acme@example.com',
+      })
 
-  it('filters by partial, case-insensitive legalName', async () => {
-    const result = await commerceRepository.search({ legalName: 'acme' })
-    expect(result).toHaveLength(2)
-    expect(result.map((c) => c.nit).sort()).toEqual([111111111, 222222222])
-  })
+      await commerceRepository.create({
+        nit: 100000002,
+        legalName: 'Tech Solutions S.A.S.',
+        shortName: 'Tech Solutions',
+        address: '456 Technology Avenue',
+        contactNumber: '3000000002',
+        email: 'tech@example.com',
+      })
 
-  it('filters by partial shortName', async () => {
-    const result = await commerceRepository.search({ shortName: 'OtherCo' })
-    expect(result).toHaveLength(1)
-    expect(result[0].nit).toBe(333333333)
-  })
+      const result = await commerceRepository.findAll()
 
-  it('filters by partial email', async () => {
-    const result = await commerceRepository.search({ email: 'acmedist' })
-    expect(result).toHaveLength(1)
-    expect(result[0].nit).toBe(222222222)
-  })
-
-  it('filters by partial address', async () => {
-    const result = await commerceRepository.search({ address: 'Third' })
-    expect(result).toHaveLength(1)
-    expect(result[0].nit).toBe(333333333)
-  })
-
-  it('filters by createdFrom', async () => {
-    const result = await commerceRepository.search({ createdFrom: '2023-06-01' })
-    expect(result).toHaveLength(2)
-    expect(result.map((c) => c.nit).sort()).toEqual([222222222, 333333333])
-  })
-
-  it('filters by createdTo', async () => {
-    const result = await commerceRepository.search({ createdTo: '2023-06-01' })
-    expect(result).toHaveLength(1)
-    expect(result[0].nit).toBe(111111111)
-  })
-
-  it('combines multiple filters with AND semantics', async () => {
-    const result = await commerceRepository.search({
-      legalName: 'acme',
-      createdFrom: '2023-05-01',
-      createdTo: '2023-12-31',
+      expect(result).toHaveLength(2)
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            nit: 100000001,
+            legalName: 'Acme Corporation S.A.S.',
+            shortName: 'Acme',
+          }),
+          expect.objectContaining({
+            nit: 100000002,
+            legalName: 'Tech Solutions S.A.S.',
+            shortName: 'Tech Solutions',
+          }),
+        ]),
+      )
     })
-    expect(result).toHaveLength(1)
-    expect(result[0].nit).toBe(222222222)
+
+    it('should return an empty array when there are no commerces', async () => {
+      const result = await commerceRepository.findAll()
+
+      expect(result).toEqual([])
+    })
   })
 
-  it('returns an empty array when no commerce matches the filters', async () => {
-    const result = await commerceRepository.search({ legalName: 'nonexistent' })
-    expect(result).toEqual([])
-  })
-})
+  describe('findByNit', () => {
+    it('should return a commerce when the NIT exists', async () => {
+      await commerceRepository.create({
+        nit: 100000001,
+        legalName: 'Acme Corporation S.A.S.',
+        shortName: 'Acme',
+        address: '123 Main Street',
+        contactNumber: '3000000001',
+        email: 'acme@example.com',
+      })
 
-describe('commerceRepository.create', () => {
-  it('creates the commerce and returns it', async () => {
-    const result = await commerceRepository.create(baseCommerce({ nit: 444444444 }))
+      const result = await commerceRepository.findByNit(100000001)
 
-    expect(result.nit).toBe(444444444)
-    expect(result.legalName).toBe('ACME Corp')
+      expect(result).toEqual(
+        expect.objectContaining({
+          nit: 100000001,
+          legalName: 'Acme Corporation S.A.S.',
+          shortName: 'Acme',
+          address: '123 Main Street',
+          contactNumber: '3000000001',
+          email: 'acme@example.com',
+        }),
+      )
 
-    const [inDb] = await db.select().from(commerce).where(eq(commerce.nit, 444444444))
-    expect(inDb).toBeDefined()
-  })
-})
+      expect(result?.createdAt).toBeInstanceOf(Date)
+    })
 
-describe('commerceRepository.update', () => {
-  it('updates and returns the commerce when it exists', async () => {
-    await db.insert(commerce).values(baseCommerce({ nit: 123456789 }))
+    it('should return undefined when the NIT does not exist', async () => {
+      const result = await commerceRepository.findByNit(999999999)
 
-    const result = await commerceRepository.update(123456789, { address: 'New Address' })
-
-    expect(result).toBeDefined()
-    expect(result?.address).toBe('New Address')
-    expect(result?.legalName).toBe('ACME Corp')
-  })
-
-  it('returns undefined when the commerce does not exist', async () => {
-    const result = await commerceRepository.update(999999999, { address: 'Ghost' })
-    expect(result).toBeUndefined()
-  })
-})
-
-describe('commerceRepository.delete', () => {
-  it('deletes the commerce and returns true when it exists', async () => {
-    await db.insert(commerce).values(baseCommerce({ nit: 123456789 }))
-
-    const result = await commerceRepository.delete(123456789)
-
-    expect(result).toBe(true)
-    const [remaining] = await db.select().from(commerce).where(eq(commerce.nit, 123456789))
-    expect(remaining).toBeUndefined()
+      expect(result).toBeUndefined()
+    })
   })
 
-  it('returns false when the commerce does not exist', async () => {
-    const result = await commerceRepository.delete(999999999)
-    expect(result).toBe(false)
+  describe('search', () => {
+    beforeEach(async () => {
+      await commerceRepository.create({
+        nit: 100000001,
+        legalName: 'Acme Corporation S.A.S.',
+        shortName: 'Acme',
+        address: '123 Main Street',
+        contactNumber: '3000000001',
+        email: 'acme@example.com',
+        createdAt: new Date('2026-01-10T10:00:00.000Z'),
+      })
+
+      await commerceRepository.create({
+        nit: 100000002,
+        legalName: 'Technology Solutions S.A.S.',
+        shortName: 'Tech Solutions',
+        address: '456 Technology Avenue',
+        contactNumber: '3000000002',
+        email: 'tech@example.com',
+        createdAt: new Date('2026-02-15T10:00:00.000Z'),
+      })
+
+      await commerceRepository.create({
+        nit: 100000003,
+        legalName: 'Global Commerce S.A.S.',
+        shortName: 'Global',
+        address: '789 Business Road',
+        contactNumber: '3000000003',
+        email: 'global@example.com',
+        createdAt: new Date('2026-03-20T10:00:00.000Z'),
+      })
+    })
+
+    it('should return all commerces when no filters are provided', async () => {
+      const result = await commerceRepository.search({})
+
+      expect(result).toHaveLength(3)
+    })
+
+    it('should search by legal name', async () => {
+      const result = await commerceRepository.search({
+        legalName: 'technology',
+      })
+
+      expect(result).toHaveLength(1)
+      expect(result[0]).toEqual(
+        expect.objectContaining({
+          nit: 100000002,
+          legalName: 'Technology Solutions S.A.S.',
+        }),
+      )
+    })
+
+    it('should search by short name', async () => {
+      const result = await commerceRepository.search({
+        shortName: 'ACME',
+      })
+
+      expect(result).toHaveLength(1)
+      expect(result[0]).toEqual(
+        expect.objectContaining({
+          nit: 100000001,
+          shortName: 'Acme',
+        }),
+      )
+    })
+
+    it('should search by email', async () => {
+      const result = await commerceRepository.search({
+        email: 'TECH@EXAMPLE.COM',
+      })
+
+      expect(result).toHaveLength(1)
+      expect(result[0]).toEqual(
+        expect.objectContaining({
+          nit: 100000002,
+          email: 'tech@example.com',
+        }),
+      )
+    })
+
+    it('should search by address', async () => {
+      const result = await commerceRepository.search({
+        address: 'business',
+      })
+
+      expect(result).toHaveLength(1)
+      expect(result[0]).toEqual(
+        expect.objectContaining({
+          nit: 100000003,
+          address: '789 Business Road',
+        }),
+      )
+    })
+
+    it('should filter commerces created from a specific date', async () => {
+      const result = await commerceRepository.search({
+        createdFrom: '2026-02-15T10:00:00.000Z',
+      })
+
+      expect(result).toHaveLength(2)
+
+      expect(result.map((commerce) => commerce.nit)).toEqual(
+        expect.arrayContaining([100000002, 100000003]),
+      )
+    })
+
+    it('should filter commerces created until a specific date', async () => {
+      const result = await commerceRepository.search({
+        createdTo: '2026-02-15T10:00:00.000Z',
+      })
+
+      expect(result).toHaveLength(2)
+
+      expect(result.map((commerce) => commerce.nit)).toEqual(
+        expect.arrayContaining([100000001, 100000002]),
+      )
+    })
+
+    it('should apply multiple filters at the same time', async () => {
+      const result = await commerceRepository.search({
+        legalName: 'Corporation',
+        shortName: 'Acme',
+        address: 'Main',
+        email: 'acme',
+        createdFrom: '2026-01-01T00:00:00.000Z',
+        createdTo: '2026-01-31T23:59:59.999Z',
+      })
+
+      expect(result).toHaveLength(1)
+      expect(result[0]).toEqual(
+        expect.objectContaining({
+          nit: 100000001,
+          legalName: 'Acme Corporation S.A.S.',
+          shortName: 'Acme',
+        }),
+      )
+    })
+
+    it('should return an empty array when no commerce matches the filters', async () => {
+      const result = await commerceRepository.search({
+        legalName: 'Non Existing Commerce',
+      })
+
+      expect(result).toEqual([])
+    })
+  })
+
+  describe('create', () => {
+    it('should create and return a commerce', async () => {
+      const data = {
+        nit: 100000001,
+        legalName: 'Acme Corporation S.A.S.',
+        shortName: 'Acme',
+        address: '123 Main Street',
+        contactNumber: '3000000001',
+        email: 'acme@example.com',
+      }
+
+      const result = await commerceRepository.create(data)
+
+      expect(result).toEqual(
+        expect.objectContaining(data),
+      )
+
+      expect(result.createdAt).toBeInstanceOf(Date)
+    })
+
+    it('should persist the commerce in the database', async () => {
+      await commerceRepository.create({
+        nit: 100000001,
+        legalName: 'Acme Corporation S.A.S.',
+        shortName: 'Acme',
+        address: '123 Main Street',
+        contactNumber: '3000000001',
+        email: 'acme@example.com',
+      })
+
+      const result = await commerceRepository.findByNit(100000001)
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          nit: 100000001,
+          legalName: 'Acme Corporation S.A.S.',
+          shortName: 'Acme',
+        }),
+      )
+    })
+
+    it('should fail when creating a commerce with a duplicated NIT', async () => {
+      const data = {
+        nit: 100000001,
+        legalName: 'Acme Corporation S.A.S.',
+        shortName: 'Acme',
+        address: '123 Main Street',
+        contactNumber: '3000000001',
+        email: 'acme@example.com',
+      }
+
+      await commerceRepository.create(data)
+
+      await expect(
+        commerceRepository.create({
+          ...data,
+          legalName: 'Another Corporation S.A.S.',
+          shortName: 'Another',
+          contactNumber: '3000000002',
+          email: 'another@example.com',
+        }),
+      ).rejects.toThrow()
+    })
+
+    it('should fail when creating a commerce with a duplicated contact number', async () => {
+      await commerceRepository.create({
+        nit: 100000001,
+        legalName: 'Acme Corporation S.A.S.',
+        shortName: 'Acme',
+        address: '123 Main Street',
+        contactNumber: '3000000001',
+        email: 'acme@example.com',
+      })
+
+      await expect(
+        commerceRepository.create({
+          nit: 100000002,
+          legalName: 'Another Corporation S.A.S.',
+          shortName: 'Another',
+          address: '456 Another Street',
+          contactNumber: '3000000001',
+          email: 'another@example.com',
+        }),
+      ).rejects.toThrow()
+    })
+
+    it('should fail when creating a commerce with a duplicated email', async () => {
+      await commerceRepository.create({
+        nit: 100000001,
+        legalName: 'Acme Corporation S.A.S.',
+        shortName: 'Acme',
+        address: '123 Main Street',
+        contactNumber: '3000000001',
+        email: 'acme@example.com',
+      })
+
+      await expect(
+        commerceRepository.create({
+          nit: 100000002,
+          legalName: 'Another Corporation S.A.S.',
+          shortName: 'Another',
+          address: '456 Another Street',
+          contactNumber: '3000000002',
+          email: 'acme@example.com',
+        }),
+      ).rejects.toThrow()
+    })
+  })
+
+  describe('update', () => {
+    beforeEach(async () => {
+      await commerceRepository.create({
+        nit: 100000001,
+        legalName: 'Acme Corporation S.A.S.',
+        shortName: 'Acme',
+        address: '123 Main Street',
+        contactNumber: '3000000001',
+        email: 'acme@example.com',
+      })
+    })
+
+    it('should update a commerce and return the updated record', async () => {
+      const result = await commerceRepository.update(100000001, {
+        legalName: 'Acme Updated Corporation S.A.S.',
+        shortName: 'Acme Updated',
+        address: '999 New Street',
+      })
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          nit: 100000001,
+          legalName: 'Acme Updated Corporation S.A.S.',
+          shortName: 'Acme Updated',
+          address: '999 New Street',
+          contactNumber: '3000000001',
+          email: 'acme@example.com',
+        }),
+      )
+    })
+
+    it('should update only the provided fields', async () => {
+      await commerceRepository.update(100000001, {
+        shortName: 'Updated Acme',
+      })
+
+      const result = await commerceRepository.findByNit(100000001)
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          nit: 100000001,
+          legalName: 'Acme Corporation S.A.S.',
+          shortName: 'Updated Acme',
+          address: '123 Main Street',
+          contactNumber: '3000000001',
+          email: 'acme@example.com',
+        }),
+      )
+    })
+
+    it('should return undefined when updating a non-existing commerce', async () => {
+      const result = await commerceRepository.update(999999999, {
+        shortName: 'Updated',
+      })
+
+      expect(result).toBeUndefined()
+    })
+  })
+
+  describe('delete', () => {
+    it('should delete an existing commerce and return true', async () => {
+      await commerceRepository.create({
+        nit: 100000001,
+        legalName: 'Acme Corporation S.A.S.',
+        shortName: 'Acme',
+        address: '123 Main Street',
+        contactNumber: '3000000001',
+        email: 'acme@example.com',
+      })
+
+      const result = await commerceRepository.delete(100000001)
+
+      expect(result).toBe(true)
+
+      const deletedCommerce = await commerceRepository.findByNit(100000001)
+
+      expect(deletedCommerce).toBeUndefined()
+    })
+
+    it('should return false when deleting a non-existing commerce', async () => {
+      const result = await commerceRepository.delete(999999999)
+
+      expect(result).toBe(false)
+    })
   })
 })
