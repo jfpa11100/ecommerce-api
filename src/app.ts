@@ -3,6 +3,7 @@ import express, { type Express } from 'express';
 import clientsRouter from './clients/clients.routes.ts';
 import commerceRouter from './commerce/commerce.routes.ts';
 import productsRouter  from './products/products.routes.ts';
+import { errorHandler } from './middlewares/error-handler.ts';
 
 const PORT = process.env.PORT || 3000;
 
@@ -13,5 +14,7 @@ app.use(express.json())
 app.use('/clients', clientsRouter)
 app.use('/commerce', commerceRouter)
 app.use('/products', productsRouter)
+
+app.use(errorHandler)
 
 app.listen(PORT);
