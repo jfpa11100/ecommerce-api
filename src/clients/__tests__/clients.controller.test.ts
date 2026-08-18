@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { clientsService } from "../clients.service.ts";
 import { clientsController } from "../clients.controller.ts";
 
-vi.mock("./clients.service.ts", () => ({
+vi.mock("../clients.service.ts", () => ({
   clientsService: {
     getAll: vi.fn(),
     getById: vi.fn(),
@@ -13,327 +13,251 @@ vi.mock("./clients.service.ts", () => ({
     patch: vi.fn(),
     delete: vi.fn(),
   },
-}));
-
-describe("clientsController", () => {
-  let req: Request;
-  let res: Response;
-  let next: NextFunction;
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-
-    req = {
-      params: {},
-      body: {},
-    } as Request;
-
-    res = {
-      json: vi.fn().mockReturnThis(),
-      status: vi.fn().mockReturnThis(),
-      send: vi.fn().mockReturnThis(),
-    } as unknown as Response;
-
-    next = vi.fn();
-  });
-
-  describe("getClients", () => {
-    it("should return all clients", async () => {
-      const clients = [
-        {
-          id: "1",
-          name: "John",
-          lastName: "Doe",
-          email: "john@example.com",
-          shipAddress: "123 Main Street",
-          createdAt: new Date(),
-        },
-        {
-          id: "2",
-          name: "Jane",
-          lastName: "Doe",
-          email: "jane@example.com",
-          shipAddress: "123 Main Street",
-          createdAt: new Date(),
-        },
-      ];
-
-      vi.mocked(clientsService.getAll).mockResolvedValue(clients);
-
-      await clientsController.getClients(req, res, next);
-
-      expect(clientsService.getAll).toHaveBeenCalledOnce();
-      expect(res.json).toHaveBeenCalledWith(clients);
-      expect(next).not.toHaveBeenCalled();
-    });
-
-    it("should call next when the service throws an error", async () => {
-      const error = new Error("Database error");
-
-      vi.mocked(clientsService.getAll).mockRejectedValue(error);
-
-      await clientsController.getClients(req, res, next);
-
-      expect(next).toHaveBeenCalledWith(error);
-      expect(res.json).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("getById", () => {
-    it("should return a client by id", async () => {
-      const client = {
-        id: "123",
-        name: "John",
-        lastName: "Doe",
-        email: "john@example.com",
-        shipAddress: "123 Main Street",
-        createdAt: new Date(),
-      };
-
-      req.params = { id: "123" };
-
-      vi.mocked(clientsService.getById).mockResolvedValue(client);
-
-      await clientsController.getById(req, res, next);
-
-      expect(clientsService.getById).toHaveBeenCalledWith("123");
-      expect(res.json).toHaveBeenCalledWith(client);
-      expect(next).not.toHaveBeenCalled();
-    });
-
-    it("should use the first value when id is an array", async () => {
-      const client = {
-        id: "123",
-        name: "John",
-        lastName: "Doe",
-        email: "john@example.com",
-        shipAddress: "123 Main Street",
-        createdAt: new Date(),
-      };
-
-      req.params = { id: ["123", "456"] };
-
-      vi.mocked(clientsService.getById).mockResolvedValue(client);
+}))
+
+const mockedClientsService = vi.mocked(clientsService)
+
+const fakeClient = {
+  id: 'client-1',
+  createdAt: new Date(),
+  name: 'John',
+  lastName: 'Doe',
+  email: 'john@example.com',
+  password: 'hashed-password',
+  shipAddress: '123 Main St',
+}
+
+function createMockRes() {
+  const res = {} as Response
+  res.json = vi.fn().mockReturnValue(res)
+  res.status = vi.fn().mockReturnValue(res)
+  res.send = vi.fn().mockReturnValue(res)
+  return res
+}
+
+function createMockReq(overrides: Partial<Request> = {}) {
+  return {
+    params: {},
+    body: {},
+    ...overrides,
+  } as unknown as Request
+}
+
+let res: Response
+let next: NextFunction
 
-      await clientsController.getById(req, res, next);
+beforeEach(() => {
+  vi.clearAllMocks()
+  res = createMockRes()
+  next = vi.fn()
+})
+
+describe('clientsController.getClients', () => {
+  it('responds with the list of clients', async () => {
+    mockedClientsService.getAll.mockResolvedValue([fakeClient])
+    const req = createMockReq()
+
+    await clientsController.getClients(req, res, next)
+
+    expect(mockedClientsService.getAll).toHaveBeenCalledTimes(1)
+    expect(res.json).toHaveBeenCalledWith([fakeClient])
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  it('calls next with the error when the service throws', async () => {
+    const error = new Error('boom')
+    mockedClientsService.getAll.mockRejectedValue(error)
+    const req = createMockReq()
+
+    await clientsController.getClients(req, res, next)
+
+    expect(next).toHaveBeenCalledWith(error)
+    expect(res.json).not.toHaveBeenCalled()
+  })
+})
+
+describe('clientsController.getById', () => {
+  it('responds with the client for a plain string id', async () => {
+    mockedClientsService.getById.mockResolvedValue(fakeClient)
+    const req = createMockReq({ params: { id: 'client-1' } })
+
+    await clientsController.getById(req, res, next)
+
+    expect(mockedClientsService.getById).toHaveBeenCalledWith('client-1')
+    expect(res.json).toHaveBeenCalledWith(fakeClient)
+  })
+
+  it('uses the first element when id arrives as an array', async () => {
+    mockedClientsService.getById.mockResolvedValue(fakeClient)
+    const req = createMockReq({ params: { id: ['client-1', 'client-2'] as any } })
+
+    await clientsController.getById(req, res, next)
+
+    expect(mockedClientsService.getById).toHaveBeenCalledWith('client-1')
+  })
+
+  it('calls next with the error when the service throws', async () => {
+    const error = new Error('not found')
+    mockedClientsService.getById.mockRejectedValue(error)
+    const req = createMockReq({ params: { id: 'missing-id' } })
+
+    await clientsController.getById(req, res, next)
+
+    expect(next).toHaveBeenCalledWith(error)
+  })
+})
+
+describe('clientsController.queryClients', () => {
+  it('responds with the matching clients using the provided body', async () => {
+    mockedClientsService.searchClient.mockResolvedValue([fakeClient])
+    const req = createMockReq({ body: { name: 'John' } })
+
+    await clientsController.queryClients(req, res, next)
 
-      expect(clientsService.getById).toHaveBeenCalledWith("123");
-      expect(res.json).toHaveBeenCalledWith(client);
-    });
+    expect(mockedClientsService.searchClient).toHaveBeenCalledWith({ name: 'John' })
+    expect(res.json).toHaveBeenCalledWith([fakeClient])
+  })
 
-    it("should call next when the service throws an error", async () => {
-      const error = new Error("Client not found");
+  it('defaults to an empty object when body is undefined', async () => {
+    mockedClientsService.searchClient.mockResolvedValue([])
+    const req = createMockReq({ body: undefined })
 
-      req.params = { id: "123" };
+    await clientsController.queryClients(req, res, next)
 
-      vi.mocked(clientsService.getById).mockRejectedValue(error);
+    expect(mockedClientsService.searchClient).toHaveBeenCalledWith({})
+  })
 
-      await clientsController.getById(req, res, next);
+  it('calls next with the error when the service throws', async () => {
+    const error = new Error('boom')
+    mockedClientsService.searchClient.mockRejectedValue(error)
+    const req = createMockReq({ body: {} })
 
-      expect(next).toHaveBeenCalledWith(error);
-      expect(res.json).not.toHaveBeenCalled();
-    });
-  });
+    await clientsController.queryClients(req, res, next)
 
-  describe("queryClients", () => {
-    it("should search for clients using the request body", async () => {
-      const query = {
-        email: "john@example.com",
-      };
+    expect(next).toHaveBeenCalledWith(error)
+  })
+})
 
-      const clients = [
-        {
-          id: "123",
-          name: "John",
-          lastName: "Doe",
-          email: "john@example.com",
-          shipAddress: "123 Main Street",
-          createdAt: new Date(),
-        },
-      ];
+describe('clientsController.create', () => {
+  it('responds 201 with the created client', async () => {
+    mockedClientsService.create.mockResolvedValue(fakeClient)
+    const req = createMockReq({ body: { email: 'john@example.com' } })
 
-      req.body = query;
+    await clientsController.create(req, res, next)
 
-      vi.mocked(clientsService.searchClient).mockResolvedValue(clients);
+    expect(mockedClientsService.create).toHaveBeenCalledWith({ email: 'john@example.com' })
+    expect(res.status).toHaveBeenCalledWith(201)
+    expect(res.json).toHaveBeenCalledWith(fakeClient)
+  })
 
-      await clientsController.queryClients(req, res, next);
+  it('calls next with the error when the service throws', async () => {
+    const error = new Error('conflict')
+    mockedClientsService.create.mockRejectedValue(error)
+    const req = createMockReq({ body: {} })
 
-      expect(clientsService.searchClient).toHaveBeenCalledWith(query);
-      expect(res.json).toHaveBeenCalledWith(clients);
-      expect(next).not.toHaveBeenCalled();
-    });
+    await clientsController.create(req, res, next)
 
-    it("should use an empty object when the request body is null", async () => {
-      req.body = null;
+    // res.status(201) already runs synchronously before the `await` on
+    // clientsService.create settles (it's evaluated first in
+    // `res.status(201).json(await ...)`), so it's expected to have been
+    // called even on failure. What must NOT happen is res.json, since the
+    // rejection short-circuits before `.json(...)` receives its argument.
+    expect(next).toHaveBeenCalledWith(error)
+    expect(res.json).not.toHaveBeenCalled()
+  })
+})
 
-      vi.mocked(clientsService.searchClient).mockResolvedValue([]);
+describe('clientsController.replace', () => {
+  it('responds with the replaced client for a plain string id', async () => {
+    mockedClientsService.replace.mockResolvedValue(fakeClient)
+    const req = createMockReq({ params: { id: 'client-1' }, body: { name: 'John' } })
 
-      await clientsController.queryClients(req, res, next);
+    await clientsController.replace(req, res, next)
 
-      expect(clientsService.searchClient).toHaveBeenCalledWith({});
-      expect(res.json).toHaveBeenCalledWith([]);
-    });
+    expect(mockedClientsService.replace).toHaveBeenCalledWith('client-1', { name: 'John' })
+    expect(res.json).toHaveBeenCalledWith(fakeClient)
+  })
 
-    it("should call next when the service throws an error", async () => {
-      const error = new Error("Search failed");
+  it('uses the first element when id arrives as an array', async () => {
+    mockedClientsService.replace.mockResolvedValue(fakeClient)
+    const req = createMockReq({ params: { id: ['client-1', 'client-2'] as any }, body: {} })
 
-      vi.mocked(clientsService.searchClient).mockRejectedValue(error);
+    await clientsController.replace(req, res, next)
 
-      await clientsController.queryClients(req, res, next);
+    expect(mockedClientsService.replace).toHaveBeenCalledWith('client-1', {})
+  })
 
-      expect(next).toHaveBeenCalledWith(error);
-      expect(res.json).not.toHaveBeenCalled();
-    });
-  });
+  it('calls next with the error when the service throws', async () => {
+    const error = new Error('not found')
+    mockedClientsService.replace.mockRejectedValue(error)
+    const req = createMockReq({ params: { id: 'missing-id' }, body: {} })
 
-  describe("create", () => {
-    it("should create a client and return status 201", async () => {
-      const clientData = {
-        name: "John",
-        lastName: "Doe",
-        email: "john@example.com",
-        password: "password123",
-        shipAddress: "123 Main Street",
-        createdAt: new Date(),
-      };
+    await clientsController.replace(req, res, next)
 
-      const createdClient = {
-        id: "123",
-        ...clientData,
-      };
+    expect(next).toHaveBeenCalledWith(error)
+  })
+})
 
-      req.body = clientData;
+describe('clientsController.patch', () => {
+  it('responds with the patched client for a plain string id', async () => {
+    mockedClientsService.patch.mockResolvedValue(fakeClient)
+    const req = createMockReq({ params: { id: 'client-1' }, body: { name: 'Jane' } })
 
-      vi.mocked(clientsService.create).mockResolvedValue(createdClient);
+    await clientsController.patch(req, res, next)
 
-      await clientsController.create(req, res, next);
+    expect(mockedClientsService.patch).toHaveBeenCalledWith('client-1', { name: 'Jane' })
+    expect(res.json).toHaveBeenCalledWith(fakeClient)
+  })
 
-      expect(clientsService.create).toHaveBeenCalledWith(clientData);
-      expect(res.status).toHaveBeenCalledWith(201);
-      expect(res.json).toHaveBeenCalledWith(createdClient);
-      expect(next).not.toHaveBeenCalled();
-    });
+  it('uses the first element when id arrives as an array', async () => {
+    mockedClientsService.patch.mockResolvedValue(fakeClient)
+    const req = createMockReq({ params: { id: ['client-1', 'client-2'] as any }, body: {} })
 
-    it("should call next when the service throws an error", async () => {
-      const error = new Error("Failed to create client");
+    await clientsController.patch(req, res, next)
 
-      vi.mocked(clientsService.create).mockRejectedValue(error);
+    expect(mockedClientsService.patch).toHaveBeenCalledWith('client-1', {})
+  })
 
-      await clientsController.create(req, res, next);
+  it('calls next with the error when the service throws', async () => {
+    const error = new Error('bad request')
+    mockedClientsService.patch.mockRejectedValue(error)
+    const req = createMockReq({ params: { id: 'client-1' }, body: {} })
 
-      expect(next).toHaveBeenCalledWith(error);
-      expect(res.status).not.toHaveBeenCalled();
-    });
-  });
+    await clientsController.patch(req, res, next)
 
-  describe("replace", () => {
-    it("should replace a client", async () => {
-      const clientData = {
-        name: "John",
-        lastName: "Smith",
-        email: "john@example.com",
-        password: "password123",
-        shipAddress: "456 New Street",
-        createdAt: new Date(),
-      };
+    expect(next).toHaveBeenCalledWith(error)
+  })
+})
 
-      const updatedClient = {
-        id: "123",
-        ...clientData,
-      };
+describe('clientsController.delete', () => {
+  it('responds 204 with no content for a plain string id', async () => {
+    mockedClientsService.delete.mockResolvedValue(undefined)
+    const req = createMockReq({ params: { id: 'client-1' } })
 
-      req.params = { id: "123" };
-      req.body = clientData;
+    await clientsController.delete(req, res, next)
 
-      vi.mocked(clientsService.replace).mockResolvedValue(updatedClient);
+    expect(mockedClientsService.delete).toHaveBeenCalledWith('client-1')
+    expect(res.status).toHaveBeenCalledWith(204)
+    expect(res.send).toHaveBeenCalledTimes(1)
+  })
 
-      await clientsController.replace(req, res, next);
+  it('uses the first element when id arrives as an array', async () => {
+    mockedClientsService.delete.mockResolvedValue(undefined)
+    const req = createMockReq({ params: { id: ['client-1', 'client-2'] as any } })
 
-      expect(clientsService.replace).toHaveBeenCalledWith("123", clientData);
-      expect(res.json).toHaveBeenCalledWith(updatedClient);
-      expect(next).not.toHaveBeenCalled();
-    });
+    await clientsController.delete(req, res, next)
 
-    it("should call next when the service throws an error", async () => {
-      const error = new Error("Failed to replace client");
+    expect(mockedClientsService.delete).toHaveBeenCalledWith('client-1')
+  })
 
-      req.params = { id: "123" };
+  it('calls next with the error when the service throws', async () => {
+    const error = new Error('not found')
+    mockedClientsService.delete.mockRejectedValue(error)
+    const req = createMockReq({ params: { id: 'missing-id' } })
 
-      vi.mocked(clientsService.replace).mockRejectedValue(error);
+    await clientsController.delete(req, res, next)
 
-      await clientsController.replace(req, res, next);
-
-      expect(next).toHaveBeenCalledWith(error);
-    });
-  });
-
-  describe("patch", () => {
-    it("should partially update a client", async () => {
-      const clientData = {
-        name: "Johnny",
-      };
-
-      const updatedClient = {
-        id: "123",
-        name: "Johnny",
-        lastName: "Doe",
-        email: "john@example.com",
-        password: "password123",
-        shipAddress: "123 Main Street",
-        createdAt: new Date(),
-      };
-
-      req.params = { id: "123" };
-      req.body = clientData;
-
-      vi.mocked(clientsService.patch).mockResolvedValue(updatedClient);
-
-      await clientsController.patch(req, res, next);
-
-      expect(clientsService.patch).toHaveBeenCalledWith("123", clientData);
-      expect(res.json).toHaveBeenCalledWith(updatedClient);
-      expect(next).not.toHaveBeenCalled();
-    });
-
-    it("should call next when the service throws an error", async () => {
-      const error = new Error("Failed to patch client");
-
-      req.params = { id: "123" };
-
-      vi.mocked(clientsService.patch).mockRejectedValue(error);
-
-      await clientsController.patch(req, res, next);
-
-      expect(next).toHaveBeenCalledWith(error);
-    });
-  });
-
-  describe("delete", () => {
-    it("should delete a client and return status 204", async () => {
-      req.params = { id: "123" };
-
-      vi.mocked(clientsService.delete).mockResolvedValue(undefined);
-
-      await clientsController.delete(req, res, next);
-
-      expect(clientsService.delete).toHaveBeenCalledWith("123");
-      expect(res.status).toHaveBeenCalledWith(204);
-      expect(res.send).toHaveBeenCalledOnce();
-      expect(next).not.toHaveBeenCalled();
-    });
-
-    it("should call next when the service throws an error", async () => {
-      const error = new Error("Failed to delete client");
-
-      req.params = { id: "123" };
-
-      vi.mocked(clientsService.delete).mockRejectedValue(error);
-
-      await clientsController.delete(req, res, next);
-
-      expect(next).toHaveBeenCalledWith(error);
-      expect(res.status).not.toHaveBeenCalled();
-      expect(res.send).not.toHaveBeenCalled();
-    });
-  });
-});
+    expect(next).toHaveBeenCalledWith(error)
+    expect(res.status).not.toHaveBeenCalled()
+  })
+})
