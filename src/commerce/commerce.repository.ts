@@ -17,7 +17,7 @@ export const commerceRepository = {
     return db.select().from(commerce)
   },
 
-  async findByNit(nit: string): Promise<Commerce | undefined> {
+  async findByNit(nit: number): Promise<Commerce | undefined> {
     const [row] = await db.select().from(commerce).where(eq(commerce.nit, nit))
     return row
   },
@@ -42,12 +42,12 @@ export const commerceRepository = {
     return row
   },
 
-  async update(nit: string, data: UpdateCommerceData): Promise<Commerce | undefined> {
+  async update(nit: number, data: UpdateCommerceData): Promise<Commerce | undefined> {
     const [row] = await db.update(commerce).set(data).where(eq(commerce.nit, nit)).returning()
     return row
   },
 
-  async delete(nit: string): Promise<boolean> {
+  async delete(nit: number): Promise<boolean> {
     const result = await db.delete(commerce).where(eq(commerce.nit, nit)).returning({ nit: commerce.nit })
     return result.length > 0
   },

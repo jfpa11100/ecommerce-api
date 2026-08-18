@@ -7,7 +7,7 @@ export const commerceService = {
     return commerceRepository.findAll()
   },
 
-  async getByNit(nit: string) {
+  async getByNit(nit: number) {
     const row = await commerceRepository.findByNit(nit)
     if (!row) throw new NotFoundError('Commerce not found')
     return row
@@ -23,13 +23,13 @@ export const commerceService = {
     return commerceRepository.create(data)
   },
 
-  async replace(nit: string, data: Required<Omit<NewCommerce, 'nit' | 'createdAt'>>) {
+  async replace(nit: number, data: Required<Omit<NewCommerce, 'nit' | 'createdAt'>>) {
     const row = await commerceRepository.update(nit, data)
     if (!row) throw new NotFoundError('Commerce not found')
     return row
   },
 
-  async patch(nit: string, data: Partial<Omit<NewCommerce, 'nit' | 'createdAt'>>) {
+  async patch(nit: number, data: Partial<Omit<NewCommerce, 'nit' | 'createdAt'>>) {
     if (Object.keys(data).length === 0) {
       throw new BadRequestError('No fields provided for update')
     }
@@ -38,7 +38,7 @@ export const commerceService = {
     return row
   },
 
-  async delete(nit: string) {
+  async delete(nit: number) {
     const deleted = await commerceRepository.delete(nit)
     if (!deleted) throw new NotFoundError('Commerce not found')
   },

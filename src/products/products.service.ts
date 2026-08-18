@@ -14,7 +14,7 @@ export const productsService = {
     return product
   },
 
-  async getByCommerce(commerceNit: string) {
+  async getByCommerce(commerceNit: number) {
     const commerceExists = await commerceRepository.findByNit(commerceNit)
     if (!commerceExists) throw new NotFoundError('Commerce not found')
     return productsRepository.findByCommerce(commerceNit)
