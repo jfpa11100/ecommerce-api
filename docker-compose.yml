@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: api-db
+
+    environment:
+      POSTGRES_DB: api_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d api_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: api-app
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    environment:
+      NODE_ENV: development
+      IS_PRODUCTION: "false"
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/api_db
+
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres_data:
