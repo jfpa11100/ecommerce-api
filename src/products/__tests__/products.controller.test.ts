@@ -26,7 +26,7 @@ const fakeProduct = {
   price: '100',
   amountAvailable: 10,
   createdAt: new Date(),
-  commerceNit: '123456789',
+  commerceNit: 123456789,
 }
 
 function createMockRes() {
