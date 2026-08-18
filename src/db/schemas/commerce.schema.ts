@@ -6,8 +6,8 @@ export const commerce = tab('commerce', {
   nit: integer('nit').primaryKey(),
   legalName: text('legal_name').notNull(),
   shortName: text('short_name').notNull(),
-  address: text('address'),
-  contactNumber: text('contact_number'),
+  address: text('address').notNull(),
+  contactNumber: text('contact_number').notNull().unique(),
   email: text('email').notNull().unique(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
