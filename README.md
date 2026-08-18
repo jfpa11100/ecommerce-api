@@ -167,7 +167,7 @@ pnpm install
 cp .env.example .env
 
 # 4. Start the development server
-npm run dev
+pnpm dev
 ```
 
 The API will be available at `http://localhost:3000`.
@@ -178,10 +178,10 @@ The API will be available at `http://localhost:3000`.
 
 ```bash
 # Run tests
-npm run test
+pnpm test
 
 # Run tests with a coverage report
-npm run test:coverage
+pnpm test:coverage
 ```
 
 ---
