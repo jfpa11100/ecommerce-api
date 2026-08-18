@@ -5,7 +5,7 @@ const commerceRouter = Router()
 
 commerceRouter.get('/', commerceController.getAll)
 commerceRouter.get('/:nit', commerceController.getByNit)
-commerceRouter.query!('/search', commerceController.queryCommerce)
+commerceRouter.query!('/', commerceController.queryCommerce)
 commerceRouter.post('/', commerceController.create)
 commerceRouter.put('/:nit', commerceController.replace)
 commerceRouter.patch('/:nit', commerceController.patch)
