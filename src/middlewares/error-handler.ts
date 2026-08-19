@@ -9,5 +9,5 @@ export function errorHandler(err: Error, req: Request, res: Response, next: Next
   if (err instanceof ConflictError) return res.status(409).json({ message: err.message })
   if (err instanceof BadRequestError) return res.status(400).json({ message: err.message })
 
-  return res.status(500).json({ message: 'Error interno del servidor' })
+  return res.status(500).json({ message: 'Server internal error' })
 }
