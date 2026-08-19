@@ -1,6 +1,8 @@
 import { eq, getTableColumns, gte, ilike, lte, and, type SQL } from 'drizzle-orm'
 import { clients, type Client, type NewClient, type ResponseClient } from '../db/schemas/client.schema.ts'
 import { db } from '../db/connection.ts'
+import bcrypt from 'bcrypt'
+import { SALT_ROUNDS } from './clients.service.ts'
 
 const { password: _, ...clientResponseColumns } = getTableColumns(clients)
 type UpdateClientData = Partial<Omit<NewClient, 'id' | 'createdAt'>>
@@ -49,9 +51,16 @@ export const clientsRepository = {
     return client
   },
 
-  async update(id: string, data: UpdateClientData): Promise<Client | undefined> {
+  async update(id: string, data: UpdateClientData): Promise<ResponseClient | undefined> {
+    if (data.password) {
+      const hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS)
+      data.password = hashedPassword
+    }
     const [client] = await db.update(clients).set(data).where(eq(clients.id, id)).returning()
-    return client
+    if (!client) return undefined
+    
+    const {password: _, ...clientWithoutPassword} = client
+    return clientWithoutPassword
   },
 
   async delete(id: string): Promise<boolean> {
