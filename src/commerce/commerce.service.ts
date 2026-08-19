@@ -24,6 +24,9 @@ export const commerceService = {
   },
 
   async replace(nit: number, data: Required<Omit<NewCommerce, 'nit' | 'createdAt'>>) {
+    if (!data.legalName || !data.shortName || !data.email || !data.address || !data.contactNumber) {
+      throw new BadRequestError('Need to provide all fields for replacement')
+    }
     const row = await commerceRepository.update(nit, data)
     if (!row) throw new NotFoundError('Commerce not found')
     return row
