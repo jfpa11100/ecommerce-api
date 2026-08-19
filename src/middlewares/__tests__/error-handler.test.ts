@@ -58,7 +58,7 @@ describe('errorHandler', () => {
     errorHandler(error, req, res, next)
 
     expect(res.status).toHaveBeenCalledWith(500)
-    expect(res.json).toHaveBeenCalledWith({ message: 'Error interno del servidor' })
+    expect(res.json).toHaveBeenCalledWith({ message: 'Server internal error' })
   })
 
   it('logs the error regardless of its type', () => {
