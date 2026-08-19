@@ -3,7 +3,7 @@ import { BadRequestError, ConflictError, NotFoundError } from '../shared/errors.
 import { clientsRepository, type ClientSearchFilters } from './clients.repository.ts'
 import bcrypt from 'bcrypt'
 
-const SALT_ROUNDS = 10 
+export const SALT_ROUNDS = 10 
 
 export const clientsService = {
   async getAll() {
@@ -29,6 +29,9 @@ export const clientsService = {
 
   // for PUT: entire object
   async replace(id: string, data: Required<Omit<NewClient, 'id' | 'createdAt'>>) {
+    if (!data.name || !data.lastName || !data.email || !data.shipAddress) {
+      throw new BadRequestError('Need to provide all fields for replacement')
+    }
     const client = await clientsRepository.update(id, data)
     if (!client) throw new NotFoundError('Client not found')
     return client
