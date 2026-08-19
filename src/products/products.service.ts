@@ -46,6 +46,9 @@ export const productsService = {
   },
 
   async create(data: NewProduct) {
+    if (!data.commerceNit) {
+      throw new BadRequestError('Commerce NIT is required')
+    }
     const commerceExists = await commerceRepository.findByNit(data.commerceNit)
     if (!commerceExists) throw new BadRequestError('Commerce with NIT not found')
     if (Number(data.price) <= 0) throw new BadRequestError('Price must be greater than 0')
@@ -53,6 +56,9 @@ export const productsService = {
   },
 
   async replace(id: string, data: Required<Omit<NewProduct, 'id' | 'createdAt'>>) {
+    if (!data.shortName || !data.fullName || !data.description || !data.price || !data.amountAvailable || !data.commerceNit) {
+      throw new BadRequestError('Need to provide all fields for replacement')
+    }
     const product = await productsRepository.update(id, data)
     if (!product) throw new NotFoundError('Product not found')
     return product
