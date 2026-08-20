@@ -67,7 +67,7 @@ describe('productsService.getById', () => {
     mockedProductsRepository.findById.mockResolvedValue(undefined)
 
     await expect(productsService.getById('missing-id')).rejects.toThrow(undefined)
-    await expect(productsService.getById('missing-id')).rejects.toThrow('Product not found')
+    await expect(productsService.getById('missing-id')).rejects.toThrow('sfa')
   })
 })
 
@@ -76,7 +76,7 @@ describe('productsService.getByCommerce', () => {
     mockedCommerceRepository.findByNit.mockResolvedValue(fakeCommerce)
     mockedProductsRepository.findByCommerce.mockResolvedValue([fakeProduct])
 
-    const result = await productsService.getByCommerce('123456789')
+    const result = await productsService.getByCommerce(4324')
 
     expect(result).toEqual([fakeProduct])
     expect(mockedCommerceRepository.findByNit).toHaveBeenCalledWith('123456789')
