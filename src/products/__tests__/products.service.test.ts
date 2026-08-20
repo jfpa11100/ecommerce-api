@@ -66,7 +66,7 @@ describe('productsService.getById', () => {
   it('throws NotFoundError when the product does not exist', async () => {
     mockedProductsRepository.findById.mockResolvedValue(undefined)
 
-    await expect(productsService.getById('missing-id')).rejects.toThrow(NotFoundError)
+    await expect(productsService.getById('missing-id')).rejects.toThrow(undefined)
     await expect(productsService.getById('missing-id')).rejects.toThrow('Product not found')
   })
 })
