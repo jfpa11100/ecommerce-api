@@ -24,7 +24,7 @@ describe('Products Repository Integration Tests', () => {
 
   describe('findAll', () => {
     it('should return all products', async () => {
-
+      await createCommerce()
 
       await productsRepository.create({
         shortName: 'Laptop',

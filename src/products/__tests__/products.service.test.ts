@@ -76,7 +76,7 @@ describe('productsService.getByCommerce', () => {
     mockedCommerceRepository.findByNit.mockResolvedValue(fakeCommerce)
     mockedProductsRepository.findByCommerce.mockResolvedValue([fakeProduct])
 
-    const result = await productsService.getByCommerce(4324')
+    const result = await productsService.getByCommerce('123456789')
 
     expect(result).toEqual([fakeProduct])
     expect(mockedCommerceRepository.findByNit).toHaveBeenCalledWith('123456789')
