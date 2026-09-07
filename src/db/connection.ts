@@ -9,6 +9,11 @@ if (!process.env.IS_PRODUCTION)
 
 const connectionString = process.env.DATABASE_URL!
 
-const client = postgres(connectionString, { prepare: false })
+const client = postgres(connectionString, { 
+  prepare: false,
+  ssl: {
+    rejectUnauthorized: false
+  } 
+})
 
 export const db = drizzle(client);
