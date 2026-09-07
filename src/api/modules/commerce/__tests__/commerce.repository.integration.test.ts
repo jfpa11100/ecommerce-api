@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { db } from '../../db/connection.ts'
-import { commerce } from '../../db/schemas/commerce.schema.ts'
+import { db } from '../../../../db/connection.ts'
+import { commerce } from '../../../../db/schemas/commerce.schema.ts'
 import { commerceRepository } from '../commerce.repository.ts'
 
 describe('Commerce Repository Integration Tests', () => {

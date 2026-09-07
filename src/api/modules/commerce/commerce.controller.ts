@@ -1,9 +1,14 @@
 import type { Request, Response, NextFunction } from 'express'
 import { commerceService } from './commerce.service.ts'
+import { BadRequestError } from '../../../shared/errors.ts';
 
-const getNitParam = (nit: string | string[] | undefined): string => {
-  if (Array.isArray(nit)) return nit[0]
-  return nit ?? ''
+const getNitParam = (nit: string | string[] | undefined): number => {
+  const value = Array.isArray(nit) ? nit[0] : nit ?? null;
+  const parsedNit = Number(value);
+  if (Number.isNaN(parsedNit)) {
+    throw new BadRequestError('Invalid NIT');
+  }
+  return parsedNit;
 }
 
 export const commerceController = {

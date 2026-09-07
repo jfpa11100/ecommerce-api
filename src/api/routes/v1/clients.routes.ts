@@ -1,5 +1,6 @@
 import { Router } from 'express'
-import { clientsController } from './clients.controller.ts'
+import { clientsController } from '../../modules/clients/v1/clients.controller.ts'
+
 
 const clientsRouter = Router()
 

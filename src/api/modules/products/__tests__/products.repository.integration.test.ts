@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { db } from '../../db/connection.ts'
-import { commerce } from '../../db/schemas/commerce.schema.ts'
-import { products } from '../../db/schemas/product.schema.ts'
+import { db } from '../../../../db/connection.ts'
+import { commerce } from '../../../../db/schemas/commerce.schema.ts'
+import { products } from '../../../../db/schemas/product.schema.ts'
 import { productsRepository } from '../products.repository.ts'
 import { eq } from 'drizzle-orm'
 

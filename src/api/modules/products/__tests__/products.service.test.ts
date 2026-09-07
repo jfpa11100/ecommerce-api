@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { commerceRepository } from '../../commerce/commerce.repository.ts'
-import { BadRequestError, NotFoundError } from '../../shared/errors.ts'
+import { BadRequestError, NotFoundError } from '../../../../shared/errors.ts'
 import { productsRepository } from '../products.repository.ts'
 import { productsService } from '../products.service.ts'
+import type { Product } from '../../../../db/schemas/product.schema.ts'
+import type { Commerce } from '../../../../db/schemas/commerce.schema.ts'
 
 vi.mock('../products.repository.ts', () => ({
   productsRepository: {
@@ -25,9 +27,9 @@ vi.mock('../../commerce/commerce.repository.ts', () => ({
 const mockedProductsRepository = vi.mocked(productsRepository)
 const mockedCommerceRepository = vi.mocked(commerceRepository)
 
-const fakeCommerce = { nit: '123456789', legalName: 'ACME', shortName: 'ACME', createdAt: new Date(), address: '123 Main St', contactNumber: '555-1234', email: 'info@acme.com' }
+const fakeCommerce: Commerce = { nit: 123456789, legalName: 'ACME', shortName: 'ACME', createdAt: new Date(), address: '123 Main St', contactNumber: '555-1234', email: 'info@acme.com' }
 
-const fakeProduct = {
+const fakeProduct:Product = {
   id: 'prod-1',
   shortName: 'Shirt',
   fullName: 'Blue Shirt',
@@ -35,7 +37,7 @@ const fakeProduct = {
   price: '100',
   amountAvailable: 10,
   createdAt: new Date(),
-  commerceNit: '123456789',
+  commerceNit: 123456789,
 }
 
 beforeEach(() => {
@@ -76,17 +78,17 @@ describe('productsService.getByCommerce', () => {
     mockedCommerceRepository.findByNit.mockResolvedValue(fakeCommerce)
     mockedProductsRepository.findByCommerce.mockResolvedValue([fakeProduct])
 
-    const result = await productsService.getByCommerce('123456789')
+    const result = await productsService.getByCommerce(123456789)
 
     expect(result).toEqual([fakeProduct])
-    expect(mockedCommerceRepository.findByNit).toHaveBeenCalledWith('123456789')
-    expect(mockedProductsRepository.findByCommerce).toHaveBeenCalledWith('123456789')
+    expect(mockedCommerceRepository.findByNit).toHaveBeenCalledWith(123456789)
+    expect(mockedProductsRepository.findByCommerce).toHaveBeenCalledWith(123456789)
   })
 
   it('throws NotFoundError when the commerce does not exist', async () => {
     mockedCommerceRepository.findByNit.mockResolvedValue(undefined)
 
-    await expect(productsService.getByCommerce('does-not-exist')).rejects.toThrow(NotFoundError)
+    await expect(productsService.getByCommerce(999999999)).rejects.toThrow(NotFoundError)
     expect(mockedProductsRepository.findByCommerce).not.toHaveBeenCalled()
   })
 })
@@ -110,7 +112,7 @@ describe('productsService.search', () => {
     mockedCommerceRepository.findByNit.mockResolvedValue(undefined)
 
     await expect(
-      productsService.search({ commerceNit: 'unknown-nit' }),
+      productsService.search({ commerceNit: 99999999999 }),
     ).rejects.toThrow('The commerce with the provided NIT does not exist')
     expect(mockedProductsRepository.search).not.toHaveBeenCalled()
   })
@@ -128,7 +130,7 @@ describe('productsService.search', () => {
     mockedCommerceRepository.findByNit.mockResolvedValue(fakeCommerce)
     mockedProductsRepository.search.mockResolvedValue([fakeProduct])
 
-    const filters = { commerceNit: '123456789', minPrice: 10, maxPrice: 200 }
+    const filters = { commerceNit: 123456789, minPrice: 10, maxPrice: 200 }
     const result = await productsService.search(filters)
 
     expect(result).toEqual([fakeProduct])

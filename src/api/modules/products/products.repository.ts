@@ -1,5 +1,5 @@
-import { db } from "../db/connection.ts"
-import { products, type NewProduct, type Product } from "../db/schemas/product.schema.ts"
+import { db } from "../../../db/connection.ts"
+import { products, type NewProduct, type Product } from "../../../db/schemas/product.schema.ts"
 import { eq, gte, ilike, and, lte, SQL } from "drizzle-orm"
 
 type UpdateProductData = Partial<Omit<NewProduct, 'id' | 'createdAt'>>
@@ -23,7 +23,7 @@ export const productsRepository = {
     return db.select().from(products).where(eq(products.commerceNit, commerceNit))
   },    
 
-  async findById(id: string) {
+  async findById(id: string): Promise<Product | undefined> {
     const [product] = await db.select().from(products).where(eq(products.id, id))
     return product
   },

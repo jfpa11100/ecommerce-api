@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { BadRequestError, ConflictError, NotFoundError } from '../../shared/errors.ts'
+import { BadRequestError, ConflictError, NotFoundError } from '../../../../shared/errors.ts'
 import { commerceRepository } from '../commerce.repository.ts'
 import { commerceService } from '../commerce.service.ts'
+import type { Commerce } from '../../../../db/schemas/commerce.schema.ts'
 
 vi.mock('../commerce.repository.ts', () => ({
   commerceRepository: {
@@ -16,8 +17,8 @@ vi.mock('../commerce.repository.ts', () => ({
 
 const mockedCommerceRepository = vi.mocked(commerceRepository)
 
-const fakeCommerce = {
-  nit: '123456789',
+const fakeCommerce: Commerce = {
+  nit: 123456789,
   legalName: 'ACME Corp',
   shortName: 'ACME',
   address: 'Main St 123',
@@ -45,17 +46,17 @@ describe('commerceService.getByNit', () => {
   it('returns the commerce when it exists', async () => {
     mockedCommerceRepository.findByNit.mockResolvedValue(fakeCommerce)
 
-    const result = await commerceService.getByNit('123456789')
+    const result = await commerceService.getByNit(123456789)
 
     expect(result).toEqual(fakeCommerce)
-    expect(mockedCommerceRepository.findByNit).toHaveBeenCalledWith('123456789')
+    expect(mockedCommerceRepository.findByNit).toHaveBeenCalledWith(123456789)
   })
 
   it('throws NotFoundError when the commerce does not exist', async () => {
     mockedCommerceRepository.findByNit.mockResolvedValue(undefined)
 
-    await expect(commerceService.getByNit('missing-nit')).rejects.toThrow(NotFoundError)
-    await expect(commerceService.getByNit('missing-nit')).rejects.toThrow('Commerce not found')
+    await expect(commerceService.getByNit(999999999)).rejects.toThrow(NotFoundError)
+    await expect(commerceService.getByNit(999999999)).rejects.toThrow('Commerce not found')
   })
 })
 
@@ -73,7 +74,7 @@ describe('commerceService.searchCommerce', () => {
 
 describe('commerceService.create', () => {
   const newCommerce = {
-    nit: '123456789',
+    nit: 123456789,
     legalName: 'ACME Corp',
     shortName: 'ACME',
     address: 'Main St 123',
@@ -97,7 +98,7 @@ describe('commerceService.create', () => {
 
     const result = await commerceService.create(newCommerce as any)
 
-    expect(mockedCommerceRepository.findByNit).toHaveBeenCalledWith('123456789')
+    expect(mockedCommerceRepository.findByNit).toHaveBeenCalledWith(123456789)
     expect(mockedCommerceRepository.create).toHaveBeenCalledWith(newCommerce)
     expect(result).toEqual(fakeCommerce)
   })
@@ -115,25 +116,25 @@ describe('commerceService.replace', () => {
   it('returns the updated commerce when it exists', async () => {
     mockedCommerceRepository.update.mockResolvedValue(fakeCommerce)
 
-    const result = await commerceService.replace('123456789', replaceData as any)
+    const result = await commerceService.replace(123456789, replaceData as any)
 
     expect(result).toEqual(fakeCommerce)
-    expect(mockedCommerceRepository.update).toHaveBeenCalledWith('123456789', replaceData)
+    expect(mockedCommerceRepository.update).toHaveBeenCalledWith(123456789, replaceData)
   })
 
   it('throws NotFoundError when the commerce does not exist', async () => {
     mockedCommerceRepository.update.mockResolvedValue(undefined)
 
     await expect(
-      commerceService.replace('missing-nit', replaceData as any),
+      commerceService.replace(999999999, replaceData as any),
     ).rejects.toThrow(NotFoundError)
   })
 })
 
 describe('commerceService.patch', () => {
   it('throws BadRequestError when no fields are provided', async () => {
-    await expect(commerceService.patch('123456789', {})).rejects.toThrow(BadRequestError)
-    await expect(commerceService.patch('123456789', {})).rejects.toThrow(
+    await expect(commerceService.patch(123456789, {})).rejects.toThrow(BadRequestError)
+    await expect(commerceService.patch(123456789, {})).rejects.toThrow(
       'No fields provided for update',
     )
     expect(mockedCommerceRepository.update).not.toHaveBeenCalled()
@@ -142,10 +143,10 @@ describe('commerceService.patch', () => {
   it('returns the updated commerce when it exists', async () => {
     mockedCommerceRepository.update.mockResolvedValue(fakeCommerce)
 
-    const result = await commerceService.patch('123456789', { address: 'New Address' })
+    const result = await commerceService.patch(123456789, { address: 'New Address' })
 
     expect(result).toEqual(fakeCommerce)
-    expect(mockedCommerceRepository.update).toHaveBeenCalledWith('123456789', {
+    expect(mockedCommerceRepository.update).toHaveBeenCalledWith(123456789, {
       address: 'New Address',
     })
   })
@@ -154,7 +155,7 @@ describe('commerceService.patch', () => {
     mockedCommerceRepository.update.mockResolvedValue(undefined)
 
     await expect(
-      commerceService.patch('missing-nit', { address: 'New Address' }),
+      commerceService.patch(999999999, { address: 'New Address' }),
     ).rejects.toThrow(NotFoundError)
   })
 })
@@ -163,13 +164,13 @@ describe('commerceService.delete', () => {
   it('deletes the commerce when it exists', async () => {
     mockedCommerceRepository.delete.mockResolvedValue(true)
 
-    await expect(commerceService.delete('123456789')).resolves.toBeUndefined()
-    expect(mockedCommerceRepository.delete).toHaveBeenCalledWith('123456789')
+    await expect(commerceService.delete(123456789)).resolves.toBeUndefined()
+    expect(mockedCommerceRepository.delete).toHaveBeenCalledWith(123456789)
   })
 
   it('throws NotFoundError when the commerce does not exist', async () => {
     mockedCommerceRepository.delete.mockResolvedValue(false)
 
-    await expect(commerceService.delete('missing-nit')).rejects.toThrow(NotFoundError)
+    await expect(commerceService.delete(999999999)).rejects.toThrow(NotFoundError)
   })
 })

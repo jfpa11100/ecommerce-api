@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
-import { db } from '../../db/connection.ts'
-import { clients, type NewClient } from '../../db/schemas/client.schema.ts'
+import { db } from '../../../../db/connection.ts'
+import { clients, type NewClient } from '../../../../db/schemas/client.schema.ts'
 import { clientsRepository } from '../clients.repository.ts'
 
 const baseClient = (overrides: Partial<NewClient> = {}): NewClient => ({

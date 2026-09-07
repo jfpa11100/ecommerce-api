@@ -1,6 +1,6 @@
     import { beforeEach, describe, expect, it, vi } from 'vitest'
 import bcrypt from 'bcrypt'
-import { BadRequestError, ConflictError, NotFoundError } from '../../shared/errors.ts'
+import { BadRequestError, ConflictError, NotFoundError } from '../../../../shared/errors.ts'
 import { clientsRepository } from '../clients.repository.ts'
 import { clientsService } from '../clients.service.ts'
 

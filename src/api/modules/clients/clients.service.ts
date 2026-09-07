@@ -1,5 +1,6 @@
-import type { NewClient } from '../db/schemas/client.schema.ts'
-import { BadRequestError, ConflictError, NotFoundError } from '../shared/errors.ts'
+
+import type { NewClient } from '../../../db/schemas/client.schema.ts'
+import { NotFoundError, ConflictError, BadRequestError } from '../../../shared/errors.ts'
 import { clientsRepository, type ClientSearchFilters } from './clients.repository.ts'
 import bcrypt from 'bcrypt'
 

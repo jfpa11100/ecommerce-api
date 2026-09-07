@@ -1,6 +1,6 @@
 import { eq, gte, ilike, and, lte, SQL } from 'drizzle-orm'
-import { commerce, type Commerce, type NewCommerce } from '../db/schemas/commerce.schema.ts'
-import { db } from '../db/connection.ts'
+import { commerce, type Commerce, type NewCommerce } from '../../../db/schemas/commerce.schema.ts'
+import { db } from '../../../db/connection.ts'
 
 type UpdateCommerceData = Partial<Omit<NewCommerce, 'nit' | 'createdAt'>>
 export type CommerceSearchFilters = {

@@ -10,8 +10,8 @@ export const productsController = {
   async getAll(req: Request, res: Response, next: NextFunction) {
     try {
       const { commerceNit } = req.query;
-      if (commerceNit && typeof commerceNit === "string") {
-        return res.json(await productsService.getByCommerce(commerceNit));
+      if (commerceNit) {
+        return res.json(await productsService.getByCommerce(Number(commerceNit)));
       }
       res.json(await productsService.getAll());
     } catch (err) {

@@ -1,5 +1,5 @@
-import type { NewCommerce } from "../db/schemas/commerce.schema.ts"
-import { BadRequestError, ConflictError, NotFoundError } from "../shared/errors.ts"
+import type { NewCommerce } from "../../../db/schemas/commerce.schema.ts"
+import { BadRequestError, ConflictError, NotFoundError } from "../../../shared/errors.ts"
 import { commerceRepository, type CommerceSearchFilters } from "./commerce.repository.ts"
 
 export const commerceService = {

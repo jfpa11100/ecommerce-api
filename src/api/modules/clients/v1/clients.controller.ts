@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express'
-import { clientsService } from './clients.service.ts'
+import { clientsService } from '../clients.service.ts'
 
 export const clientsController = {
   async getClients(req: Request, res: Response, next: NextFunction) {

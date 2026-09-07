@@ -1,6 +1,6 @@
 import { eq, getTableColumns, gte, ilike, lte, and, type SQL } from 'drizzle-orm'
-import { clients, type Client, type NewClient, type ResponseClient } from '../db/schemas/client.schema.ts'
-import { db } from '../db/connection.ts'
+import { clients, type NewClient, type ResponseClient } from '../../../db/schemas/client.schema.ts'
+import { db } from '../../../db/connection.ts'
 import bcrypt from 'bcrypt'
 import { SALT_ROUNDS } from './clients.service.ts'
 

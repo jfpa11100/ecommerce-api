@@ -19,7 +19,7 @@ vi.mock('../commerce.service.ts', () => ({
 const mockedCommerceService = vi.mocked(commerceService)
 
 const fakeCommerce = {
-  nit: '123456789',
+  nit: 123456789,
   legalName: 'ACME Corp',
   shortName: 'ACME',
   address: 'Main St 123',
@@ -84,17 +84,17 @@ describe('commerceController.getByNit', () => {
 
     await commerceController.getByNit(req, res, next)
 
-    expect(mockedCommerceService.getByNit).toHaveBeenCalledWith('123456789')
+    expect(mockedCommerceService.getByNit).toHaveBeenCalledWith(123456789)
     expect(res.json).toHaveBeenCalledWith(fakeCommerce)
   })
 
   it('uses the first element when nit arrives as an array', async () => {
     mockedCommerceService.getByNit.mockResolvedValue(fakeCommerce)
-    const req = createMockReq({ params: { nit: ['123456789', '987654321'] as any } })
+    const req = createMockReq({ params: { nit: [123456789, 987654321] as any } })
 
     await commerceController.getByNit(req, res, next)
 
-    expect(mockedCommerceService.getByNit).toHaveBeenCalledWith('123456789')
+    expect(mockedCommerceService.getByNit).toHaveBeenCalledWith(123456789)
   })
 
   it('passes an empty string when nit is undefined', async () => {
@@ -151,11 +151,11 @@ describe('commerceController.queryCommerce', () => {
 describe('commerceController.create', () => {
   it('responds 201 with the created commerce', async () => {
     mockedCommerceService.create.mockResolvedValue(fakeCommerce)
-    const req = createMockReq({ body: { nit: '123456789' } })
+    const req = createMockReq({ body: { nit: 123456789 } })
 
     await commerceController.create(req, res, next)
 
-    expect(mockedCommerceService.create).toHaveBeenCalledWith({ nit: '123456789' })
+    expect(mockedCommerceService.create).toHaveBeenCalledWith({ nit: 123456789 })
     expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalledWith(fakeCommerce)
   })
@@ -190,11 +190,11 @@ describe('commerceController.replace', () => {
 
   it('uses the first element when nit arrives as an array', async () => {
     mockedCommerceService.replace.mockResolvedValue(fakeCommerce)
-    const req = createMockReq({ params: { nit: ['123456789', '987654321'] as any }, body: {} })
+    const req = createMockReq({ params: { nit: [123456789, 987654321] as any }, body: {} })
 
     await commerceController.replace(req, res, next)
 
-    expect(mockedCommerceService.replace).toHaveBeenCalledWith('123456789', {})
+    expect(mockedCommerceService.replace).toHaveBeenCalledWith(123456789, {})
   })
 
   it('calls next with the error when the service throws', async () => {
@@ -215,17 +215,17 @@ describe('commerceController.patch', () => {
 
     await commerceController.patch(req, res, next)
 
-    expect(mockedCommerceService.patch).toHaveBeenCalledWith('123456789', { address: 'New Address' })
+    expect(mockedCommerceService.patch).toHaveBeenCalledWith(123456789, { address: 'New Address' })
     expect(res.json).toHaveBeenCalledWith(fakeCommerce)
   })
 
   it('uses the first element when nit arrives as an array', async () => {
     mockedCommerceService.patch.mockResolvedValue(fakeCommerce)
-    const req = createMockReq({ params: { nit: ['123456789', '987654321'] as any }, body: {} })
+    const req = createMockReq({ params: { nit: [123456789, 987654321] as any }, body: {} })
 
     await commerceController.patch(req, res, next)
 
-    expect(mockedCommerceService.patch).toHaveBeenCalledWith('123456789', {})
+    expect(mockedCommerceService.patch).toHaveBeenCalledWith(123456789, {})
   })
 
   it('calls next with the error when the service throws', async () => {
@@ -246,7 +246,7 @@ describe('commerceController.delete', () => {
 
     await commerceController.delete(req, res, next)
 
-    expect(mockedCommerceService.delete).toHaveBeenCalledWith('123456789')
+    expect(mockedCommerceService.delete).toHaveBeenCalledWith(123456789)
     expect(res.status).toHaveBeenCalledWith(204)
     expect(res.send).toHaveBeenCalledTimes(1)
   })
@@ -257,7 +257,7 @@ describe('commerceController.delete', () => {
 
     await commerceController.delete(req, res, next)
 
-    expect(mockedCommerceService.delete).toHaveBeenCalledWith('123456789')
+    expect(mockedCommerceService.delete).toHaveBeenCalledWith(123456789)
   })
 
   it('calls next with the error when the service throws, without responding', async () => {

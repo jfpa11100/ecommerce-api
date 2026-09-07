@@ -1,6 +1,6 @@
 import { commerceRepository } from "../commerce/commerce.repository.ts"
-import type { NewProduct } from "../db/schemas/product.schema.ts"
-import { BadRequestError, NotFoundError } from "../shared/errors.ts"
+import type { NewProduct } from "../../../db/schemas/product.schema.ts"
+import { BadRequestError, NotFoundError } from "../../../shared/errors.ts"
 import { productsRepository, type ProductSearchFilters } from "./products.repository.ts"
 
 export const productsService = {

@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { clientsService } from "../clients.service.ts";
-import { clientsController } from "../clients.controller.ts";
+import { clientsController } from "../v1/clients.controller.ts";
 
 vi.mock("../clients.service.ts", () => ({
   clientsService: {
