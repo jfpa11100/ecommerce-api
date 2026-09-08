@@ -10,6 +10,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
 RUN pnpm install --frozen-lockfile --prod
 
+COPY --chown=nodejs:nodejs certs ./certs
 COPY --chown=nodejs:nodejs src ./src
 
 USER nodejs
