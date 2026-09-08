@@ -1,8 +1,6 @@
-import { pgTable, uuid, text, timestamp, pgSchema } from 'drizzle-orm/pg-core'
+import { pgTable, uuid, text, timestamp } from 'drizzle-orm/pg-core'
 
-const tab = process.env.IS_PRODUCTION === 'true' ? pgTable : pgSchema('test_db').table as unknown as typeof pgTable
-
-export const clients = tab('clients', {
+export const clients = pgTable('clients', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: text('name').notNull(),
   lastName: text('last_name').notNull(),
