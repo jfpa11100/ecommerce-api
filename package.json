@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "tsx --watch src/app.ts",
     "start": "node src/app.ts",
+    "typecheck": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "vitest run --config vitest.integration.config.ts",
@@ -29,7 +30,8 @@
     "bcrypt": "^6.0.0",
     "drizzle-orm": "^0.45.2",
     "postgres": "^3.4.9",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "dotenv": "^17.4.2"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
