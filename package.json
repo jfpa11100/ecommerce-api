@@ -7,13 +7,13 @@
     "node": ">=20.19.0"
   },
   "scripts": {
-    "dev": "tsx --watch src/app.ts",
+    "dev": "cross-env NODE_ENV=development tsx --watch src/app.ts",
     "start": "node src/app.ts",
     "typecheck": "tsc",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:integration": "vitest run --config vitest.integration.config.ts",
-    "test:coverage": "vitest run --coverage"
+    "test": "cross-env NODE_ENV=test vitest run",
+    "test:watch": "cross-env NODE_ENV=test vitest",
+    "test:integration": "cross-env NODE_ENV=test vitest run --config vitest.integration.config.ts",
+    "test:coverage": "cross-env NODE_ENV=test vitest run --coverage"
   },
   "keywords": [],
   "author": "",
@@ -34,6 +34,7 @@
     "dotenv": "^17.4.2"
   },
   "devDependencies": {
+    "cross-env": "^10.1.0",
     "@types/bcrypt": "^6.0.0",
     "tsx": "^4.23.12",
     "@types/express": "^5.0.6",
