@@ -13,4 +13,8 @@ app.use('/api/v1', v1Router)
 
 app.use(errorHandler)
 
+app.get('/health', (_req, res) => {
+  res.status(200).json({status: 'ok'})
+})
+
 app.listen(PORT);
