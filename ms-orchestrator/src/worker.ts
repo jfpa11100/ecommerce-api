@@ -4,6 +4,7 @@ import { config } from './config.ts';
 import type { RequestMessage } from './shared/types.ts';
 import axios from 'axios';
 import { sendResponseMessage } from './queue/sqs-producer.ts';
+import { logger } from './shared/logger.ts';
 
 
 let running = true;
@@ -11,7 +12,7 @@ process.on('SIGTERM', () => { running = false; });
 process.on('SIGINT', () => { running = false; });
 
 export async function worker(): Promise<void> {
-  console.info('Worker/dispatcher set, hearing requests from queue');
+  logger.info('Worker/dispatcher set, hearing requests from queue');
 
   while (running) {
     try {
@@ -32,7 +33,7 @@ export async function worker(): Promise<void> {
         }));
       }
     } catch (error) {
-      console.error('Error consuming queue of requests', { error: String(error) });
+      logger.error('Error consuming queue of requests', { error: String(error) });
       await sleep(2000);
     }
   }
@@ -42,7 +43,7 @@ async function handleMessage(message: RequestMessage): Promise<void> {
   const baseUrl = config.clusters[message.target];
   const url = `${baseUrl}${message.path}`;
 
-  console.info('Handling request to target cluster\n', {
+  logger.info('Handling request to target cluster\n', {
     traceId: message.traceId,
     target: message.target,
     url,
@@ -63,7 +64,7 @@ async function handleMessage(message: RequestMessage): Promise<void> {
       body: response.data,
     });
   } catch (error) {
-    console.error('Error calling target cluster', { traceId: message.traceId, error: String(error) });
+    logger.error('Error calling target cluster', { traceId: message.traceId, error: String(error) });
     await sendResponseMessage({
       traceId: message.traceId,
       status: 502,
