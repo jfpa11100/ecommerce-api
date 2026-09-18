@@ -1,3 +1,4 @@
+import { logger } from "./logger.ts";
 import type { ResponseMessage } from "./types.ts";
 
 interface PendingEntry {
@@ -29,6 +30,9 @@ export function waitForResponse(traceId: string, timeoutMs: number): Promise<Res
 export function resolvePendingResponse(message: ResponseMessage): boolean {
   const entry = pending.get(message.traceId);
   if (!entry) {
+    logger.warn('Response received without associated pending request (timeout or replica)', {
+      traceId: message.traceId,
+    });
     return false;
   }
   clearTimeout(entry.timeout);

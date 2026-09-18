@@ -4,6 +4,7 @@ import { errorHandler } from './middlewares/error-handler.ts';
 import { orchestrateRouter } from './routes/orchestrator.router.ts';
 import { startResponseListener, stopResponseListener } from './queue/sqs-response-listener.ts';
 import { worker } from './worker.ts';
+import { logger } from './shared/logger.ts';
 
 const PORT = process.env.PORT || 3000;
 
@@ -21,12 +22,13 @@ app.get('/health', (_req, res) => {
 startResponseListener();
 
 const server = app.listen(PORT, () => {
-  console.log(`Orchestrator on port ${PORT}`);
+  logger.info(`Orchestrator on port ${PORT}`);
 });
 
 worker();
 
 function shutdown(): void {
+  logger.info('Shutting down orchestrator...');
   stopResponseListener();
   server.close(() => process.exit(0));
 };
