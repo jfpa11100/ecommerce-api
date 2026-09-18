@@ -14,7 +14,7 @@ export const orchestrateRouter = Router();
 // request should go to. 
 // The rest of the path is forwarded as is to the target cluster.
 
-orchestrateRouter.all('/api/:target/*', async (req, res) => {
+orchestrateRouter.all('/api/:target/*splat', async (req, res) => {
   const { target } = req.params;
 
   if (!isClusterTarget(target)) {
