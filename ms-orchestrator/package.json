@@ -13,6 +13,7 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@aws-sdk/client-sqs": "^3.1134.0",
     "express": "^5.2.1"
   },
   "devDependencies": {
