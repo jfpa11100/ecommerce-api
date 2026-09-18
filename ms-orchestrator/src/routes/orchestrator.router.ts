@@ -2,6 +2,7 @@ import { Router } from "express";
 import { config, isClusterTarget } from "../config.ts";
 import { sendRequestMessage } from "../queue/sqs-producer.ts";
 import { waitForResponse } from "../shared/pending-requests.ts";
+import { logger } from "../shared/logger.ts";
 
 export const orchestrateRouter = Router();
 
@@ -27,6 +28,12 @@ orchestrateRouter.all('/api/:target/*splat', async (req, res) => {
 
   const downstreamPath = req.originalUrl.replace(`/api/${target}`, '') || '/';
 
+  logger.info('Request received, publishing to requests queue', {
+    traceId: req.traceId,
+    target,
+    path: downstreamPath,
+  });
+
   try {
     // Send to Request to SQS queue
     await sendRequestMessage({
@@ -41,6 +48,10 @@ orchestrateRouter.all('/api/:target/*splat', async (req, res) => {
     const response = await waitForResponse(req.traceId, config.requestTimeoutMs);
     res.status(response.status).json(response.body);
   } catch (error) {
+    logger.error('No response received from the destination cluster in time', {
+      traceId: req.traceId,
+      error: String(error),
+    });
     res.status(504).json({
       traceId: req.traceId,
       error: 'the destination cluster did not respond in time',
