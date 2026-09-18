@@ -3,6 +3,7 @@ import { sqsClient } from './sqs-client.ts';
 import { config } from '../config.ts';
 import type { ResponseMessage } from '../shared/types.ts';
 import { resolvePendingResponse } from '../shared/pending-requests.ts';
+import { logger } from '../shared/logger.ts';
 
 let running = false;
 
@@ -32,7 +33,7 @@ async function poll(): Promise<void> {
           const parsed = JSON.parse(message.Body) as ResponseMessage;
           resolvePendingResponse(parsed);
         } catch (error) {
-          console.error('Error parsing the response message', { error: String(error) });
+          logger.error('Error parsing the response message', { error: String(error) });
         }
 
         await sqsClient.send(new DeleteMessageCommand({
@@ -41,7 +42,7 @@ async function poll(): Promise<void> {
         }));
       }
     } catch (error) {
-      console.error('Error consulting the response queue', { error: String(error) });
+      logger.error('Error consulting the response queue', { error: String(error) });
       // if error, wait to try again evitating queue saturation.
       await sleep(2000);
     }
