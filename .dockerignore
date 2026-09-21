@@ -7,3 +7,4 @@ coverage
 dist
 .vscode
 .DS_Store
+ms-orchestrator/
