@@ -1,6 +1,6 @@
-CREATE SCHEMA IF NOT EXISTS test_db;
+CREATE SCHEMA IF NOT EXISTS public;
 
-CREATE TABLE IF NOT EXISTS test_db.clients (
+CREATE TABLE IF NOT EXISTS public.clients (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     last_name TEXT NOT NULL,
@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS test_db.clients (
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS test_db.commerce (
+CREATE TABLE IF NOT EXISTS public.commerce (
     nit INTEGER PRIMARY KEY,
     legal_name TEXT NOT NULL,
     short_name TEXT NOT NULL,
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS test_db.commerce (
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS test_db.products (
+CREATE TABLE IF NOT EXISTS public.products (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     short_name TEXT NOT NULL,
     full_name TEXT NOT NULL,
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS test_db.products (
     amount_available INTEGER DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     commerce_nit INTEGER NOT NULL
-        REFERENCES test_db.commerce(nit)
+        REFERENCES public.commerce(nit)
         ON DELETE CASCADE
         ON UPDATE RESTRICT
 );
