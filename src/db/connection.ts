@@ -19,10 +19,12 @@ if (!process.env.DATABASE_URL)
 
 const client = postgres(process.env.DATABASE_URL, {
   prepare: false,
-  ssl: { 
-    rejectUnauthorized: true,
-    ca: fs.readFileSync('./certs/us-east-2-bundle.pem', 'utf8'),
-  }
+  ssl: environment === 'production'
+    ? {
+      rejectUnauthorized: true,
+      ca: fs.readFileSync('./certs/us-east-2-bundle.pem', 'utf8'),
+    }
+    : false,
 })
 
 export const db = drizzle(client);
