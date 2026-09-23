@@ -10,6 +10,8 @@ RUN pnpm install --frozen-lockfile
 
 COPY . .
 
+ENV OTEL_SERVICE_NAME=dev-api-aws
+
 EXPOSE 3000
 
 CMD ["pnpm", "dev"]
