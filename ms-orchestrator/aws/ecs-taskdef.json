@@ -1,0 +1,75 @@
+{
+    "executionRoleArn": "arn:aws:iam::851725429165:role/ecommerce-ecs-execution-role",
+    "networkMode": "awsvpc",
+    "cpu": "256",
+    "requiresCompatibilities": [
+        "FARGATE"
+    ],
+    "containerDefinitions": [
+        {
+            "portMappings": [
+                {
+                    "protocol": "tcp",
+                    "containerPort": 3000
+                }
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-region": "us-east-2",
+                    "awslogs-stream-prefix": "ecs",
+                    "awslogs-group": "/ecs/orquestador"
+                }
+            },
+            "name": "orchestrator",
+            "environment": [
+                {
+                    "value": "production",
+                    "name": "NODE_ENV"
+                },
+                {
+                    "value": "us-east-2",
+                    "name": "AWS_REGION"
+                },
+                {
+                    "value": "https://sqs.us-east-2.amazonaws.com/851725429165/orchestrator-requests",
+                    "name": "REQUEST_QUEUE_URL"
+                },
+                {
+                    "value": "https://sqs.us-east-2.amazonaws.com/851725429165/orchestrator-responses",
+                    "name": "RESPONSE_QUEUE_URL"
+                },
+                {
+                    "value": "http://k8s-default-ecommerc-233fe225e6-1328693903.us-east-2.elb.amazonaws.com",
+                    "name": "AWS_CLUSTER_URL"
+                },
+                {
+                    "value": "http://34.57.56.128",
+                    "name": "GCP_CLUSTER_URL"
+                },
+                {
+                    "value": "http://20.232.234.128",
+                    "name": "OCI_CLUSTER_URL"
+                },
+                {
+                    "value": "orchestrator",
+                    "name": "OTEL_SERVICE_NAME"
+                }
+            ],
+            "secrets":[
+                {
+                    "name": "OTEL_EXPORTER_OTLP_ENDPOINT",
+                    "valueFrom": "arn:aws:secretsmanager:us-east-2:851725429165:secret:ecommerce_db_secrets-Plbhtg:OTEL_EXPORTER_OTLP_ENDPOINT::"
+                },
+                {
+                    "name": "OTEL_EXPORTER_OTLP_HEADERS",
+                    "valueFrom": "arn:aws:secretsmanager:us-east-2:851725429165:secret:ecommerce_db_secrets-Plbhtg:OTEL_EXPORTER_OTLP_HEADERS::"
+                }
+            ],
+            "image": "851725429165.dkr.ecr.us-east-2.amazonaws.com/orchestrator:v1.1.0"
+        }
+    ],
+    "family": "orchestrator-task",
+    "taskRoleArn": "arn:aws:iam::851725429165:role/ecommerce-ecs-task-role",
+    "memory": "512"
+}
