@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { commerceController } from '../../modules/commerce/commerce.controller.ts'
+import { commerceController } from '../../modules/commerce/v1/commerce.controller.ts'
 
 const commerceRouter = Router()
 

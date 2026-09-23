@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express'
-import { commerceService } from './commerce.service.ts'
-import { BadRequestError } from '../../../shared/errors.ts';
+import { BadRequestError } from '../../../../shared/errors.ts';
+import { commerceService } from '../commerce.service.ts';
 
 const getNitParam = (nit: string | string[] | undefined): number => {
   const value = Array.isArray(nit) ? nit[0] : nit ?? null;
