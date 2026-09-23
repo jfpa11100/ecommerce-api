@@ -6,7 +6,7 @@ RUN corepack enable && corepack prepare pnpm@11.1.3 --activate
 
 RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
 
-COPY package.json ./
+COPY package.json pnpm-workspace.yaml ./
 
 RUN pnpm install --prod
 
