@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { productsService } from "./products.service.ts";
+import { productsService } from "../products.service.ts";
 
 const getIdParam = (id: string | string[] | undefined): string => {
   if (Array.isArray(id)) return id[0];
