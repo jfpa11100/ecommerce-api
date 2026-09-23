@@ -1,0 +1,15 @@
+import { Router } from 'express'
+import { commerceController } from '../../modules/commerce/v2/commerce.controller.v2.ts'
+
+
+const commerceRouter = Router()
+
+commerceRouter.get('/', commerceController.getAll)
+commerceRouter.get('/:nit', commerceController.getByNit)
+commerceRouter.query!('/', commerceController.queryCommerce)
+commerceRouter.post('/', commerceController.create)
+commerceRouter.put('/:nit', commerceController.replace)
+commerceRouter.patch('/:nit', commerceController.patch)
+commerceRouter.delete('/:nit', commerceController.delete)
+
+export default commerceRouter
