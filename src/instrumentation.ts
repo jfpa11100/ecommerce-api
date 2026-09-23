@@ -1,4 +1,4 @@
-// instrumentation.ts
+import 'dotenv/config';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
@@ -16,5 +16,5 @@ new NodeSDK({
     exporter: new OTLPMetricExporter(),     
     exportIntervalMillis: 30000,
   }),
-  instrumentations: [],
+  instrumentations: [getNodeAutoInstrumentations()],
 }).start();
