@@ -11,7 +11,8 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 ENV OTEL_SERVICE_NAME=dev-api-aws
+ENV NODE_ENV=development
 
 EXPOSE 3000
 
-CMD ["pnpm", "dev"]
+CMD ["node", "--import", "./src/instrumentation.ts", "src/app.ts"]

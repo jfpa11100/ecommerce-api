@@ -17,4 +17,4 @@ USER nodejs
 
 EXPOSE 3000
 
-CMD ["node", "src/app.ts"]
+CMD ["node", "--import", "./src/instrumentation.ts", "src/app.ts"]
