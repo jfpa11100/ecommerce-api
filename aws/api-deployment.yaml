@@ -16,7 +16,7 @@ spec:
       serviceAccountName: ecommerce-api
       containers:
         - name: ecommerce-api
-          image: $accountId.dkr.ecr.us-east-2.amazonaws.com/ecommerce-api:v2.0.0
+          image: 851725429165.dkr.ecr.us-east-2.amazonaws.com/ecommerce-api:v2.1.0
           ports:
             - containerPort: 3000
           envFrom:
@@ -29,6 +29,8 @@ spec:
               value: "http://34.57.56.128"
             - name: OCI_CLUSTER_URL
               value: "http://20.232.234.128"
+            - name: OTEL_SERVICE_NAME
+              value: "api-aws"
           volumeMounts:
             - name: secrets-store
               mountPath: /mnt/secrets
