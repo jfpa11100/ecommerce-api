@@ -1,4 +1,4 @@
-import 'dotenv/config'
+import 'dotenv/config';
 import express, { type Express } from 'express';
 import { errorHandler } from './middlewares/error-handler.ts';
 import v1Router from './api/routes/v1/index.ts';

@@ -50,3 +50,8 @@ services:
 
 volumes:
   postgres_data:
+
+
+
+# docker compose up -d --build api
+# docker compose logs -f api
