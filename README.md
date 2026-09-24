@@ -15,7 +15,7 @@ Project developed for the **DevOps** asignature — Universidad de Medellín
 [![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 [![Grafana](https://img.shields.io/badge/Grafana_Cloud-Observability-F46800?logo=grafana&logoColor=white)](https://grafana.com/)
 
-[View Demo (Production)](https://ecommerce-backend-yi4o.onrender.com/) · [Repository](https://github.com/jfpa11100/ecommerce-backend)
+ [Repository](https://github.com/jfpa11100/ecommerce-backend)
 
 </div>
 
