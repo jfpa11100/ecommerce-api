@@ -10,8 +10,10 @@ Project developed for the **DevOps** asignature — Universidad de Medellín
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Express](https://img.shields.io/badge/Express-5.x-000000?logo=express&logoColor=white)](https://expressjs.com/)
 [![Drizzle ORM](https://img.shields.io/badge/Drizzle_ORM-C5F74F?logo=drizzle&logoColor=black)](https://orm.drizzle.team/)
-[![Supabase](https://img.shields.io/badge/Supabase-Postgres-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
+[![AWS](https://img.shields.io/badge/AWS-ECS_%7C_EKS_%7C_RDS-FF9900?logo=amazonaws&logoColor=white)](https://aws.amazon.com/)
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-EKS-326CE5?logo=kubernetes&logoColor=white)](https://kubernetes.io/)
 [![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Grafana](https://img.shields.io/badge/Grafana_Cloud-Observability-F46800?logo=grafana&logoColor=white)](https://grafana.com/)
 
 [View Demo (Production)](https://ecommerce-backend-yi4o.onrender.com/) · [Repository](https://github.com/jfpa11100/ecommerce-backend)
 
@@ -23,29 +25,28 @@ Project developed for the **DevOps** asignature — Universidad de Medellín
 
 - [Description](#-description)
 - [Academic objective](#-academic-objective)
-- [Environments](#-environments)
-- [CI/CD Pipelines](#-cicd-pipelines)
-- [Quality rules (Quality Gates)](#-quality-rules-quality-gates)
+- [Observability](#-observability)
 - [Docker](#-docker)
+- [Environment variables](#-environment-variables)
 - [How to run the project locally](#-how-to-run-the-project-locally)
-- [Testing and coverage](#-testing-and-coverage)
+- [Testing](#-testing)
 - [Author](#-author)
 
 ---
 
 ## 📖 Description
 
-**E-commerce API** is a RESTful API built with **Express + TypeScript**, which manages three related entities — **Clients**, **Commerces** and **Products** — using **PostgreSQL** (hosted on **Supabase**) as the database and **Drizzle ORM** as the data access layer.
+**E-commerce API** is a RESTful API built with **Express + TypeScript**, which manages three related entities — **Clients**, **Commerces** and **Products** — using **PostgreSQL** (hosted on **AWS RDS**) as the database and **Drizzle ORM** as the data access layer.
 
 The project follows a layered architecture (**Router → Controller → Service → Repository**) that separates responsibilities, makes testing easier, and allows the data infrastructure to evolve without affecting the business logic.
 
-> This repository is the practical implementation of the **DevOps** emphasis track, so in addition to the application code, it includes all the **CI/CD infrastructure, containers, separate environments, and automated quality control**.
+> This repository is the practical implementation of the **DevOps** emphasis track, so in addition to the application code, it includes the **cloud infrastructure, orchestration, containers, and observability stack** that support it in production.
 
 ---
 
 ## 🎯 Academic objective
 
-Deploy a production-ready application while following core DevOps practices:
+Deploy a production-ready, multi-cloud application while following core DevOps and SRE practices:
 
 | Requirement | Status |
 |---|:---:|
@@ -53,103 +54,105 @@ Deploy a production-ready application while following core DevOps practices:
 | Standardized commits with GitMoji | ✅ |
 | Complete RESTful API (includes the `QUERY` verb) | ✅ |
 | At least 3 entities with real persistence | ✅ |
-| 2 independent environments (Testing / Production) | ✅ |
-| CI/CD pipeline | ✅ |
-| Coverage and testing quality gates | ✅ |
 | Containerization with Docker | ✅ |
+| Deployment on managed Kubernetes (AWS EKS) | ✅ |
+| Cross-cloud orchestration (AWS ECS) | ✅ |
+| Infrastructure monitoring and alerting | ✅ |
+| Distributed tracing across services | ✅ |
 
 ---
 
-- **Routes**: define the endpoints and the HTTP verb (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `QUERY`).
-- **Controllers**: receive the HTTP request, delegate to the service, and return the response.
-- **Services**: contain the business rules (validations, orchestration).
-- **Repositories**: the only layer that knows the ORM and runs queries against the database.
+## 🏗️ Architecture
+
+This API is one of three cloud services that a Node.js **orchestrator** (deployed separately on **AWS ECS**) coordinates. The orchestrator receives requests, delegates work through two **SQS** queues, and calls three APIs hosted on three different cloud providers — this repository being the one running on **AWS EKS**.
+
+```mermaid
+flowchart TD
+    Client(["Cliente"]) --> Orq["Orquestador<br/>ECS · Express-TS"]
+
+    Orq --> SQS1[("Cola SQS 1")]
+    Orq --> SQS2[("Cola SQS 2")]
+    Orq --> API2["API · Nube B"]
+    Orq --> API3["API · Nube C"]
+    Orq -->|HTTP| ALB["AWS ALB"]
+
+    ALB --> EKS["Cluster EKS<br/>E-commerce API"]
+    EKS --> RDS[("AWS RDS<br/>PostgreSQL")]
+
+    Orq -. OTLP traces/metrics .-> Grafana["Grafana Cloud<br/>Tempo + Mimir"]
+    EKS -. OTLP traces/metrics .-> Grafana
+
+    EKS -. control-plane logs .-> CW["CloudWatch"]
+
+    ECR["ECR"] -. Image .-> Orq
+    ECR -. Image .-> EKS
+```
+
+**Request flow:** a client hits the orchestrator on ECS, which fans out work across the two SQS queues and calls the three cloud APIs — reaching this repo's API through an **Application Load Balancer** in front of the EKS cluster. This API queries **RDS** and returns the response, which flows back through the orchestrator to the client.
+
+**Trace propagation:** every hop (HTTP calls and SQS messages) carries the OpenTelemetry `traceparent` context, so a single request can be followed end-to-end across ECS, the queues, and EKS as one connected trace in Grafana Cloud.
 
 ---
 
-## 🛠️ Tech stack
+## ☁️ AWS services used
 
-| Category | Technology |
+| Service | Purpose |
 |---|---|
-| Runtime | Node.js (≥ 20.19.3 &lt;21 or ≥ 22.2.0) |
-| Language | TypeScript |
-| HTTP Framework | Express 5 |
-| ORM | Drizzle ORM |
-| Database | PostgreSQL (Supabase) |
-| Containerization | Docker & Docker Compose |
-| Testing | Vitest |
-| CI/CD | GitHub Actions |
-| Hosting | Render |
+| **EKS** (Elastic Kubernetes Service) | Hosts this API as a containerized workload |
+| **ECS** (Elastic Container Service) | Hosts the orchestrator service |
+| **RDS** (PostgreSQL) | Managed database for this API |
+| **SQS** | Two queues used by the orchestrator for async work |
+| **ALB** (Application Load Balancer) | Exposes the EKS-hosted API to the orchestrator |
+| **ECR** (Elastic Container Registry) | Stores the Docker images for both services |
+| **IAM** | Roles and permissions for ECS tasks and EKS workloads |
+| **Secrets Manager** | Stores sensitive credentials (DB, observability tokens) |
+| **CloudWatch** | Selective EKS control-plane logging + CPU alarm on ECS |
+| **SNS** | Sends the CloudWatch alarm notification by email |
 
 ---
 
+## 📊 Observability
 
-## 🌍 Environments
+Two complementary layers of monitoring were implemented:
 
-The project has **two fully independent environments**, each with its own database, deployment URL, and environment variables/secrets.
-
-| | 🧪 Testing | 🚀 Production |
-|---|---|---|
-| **URL** | https://test-ecommerce-3jtf.onrender.com | https://ecommerce-backend-yi4o.onrender.com/ |
-| **Database** | Supabase |
-| **Deploying branch** | `test-environment` | `main` |
-| **Minimum coverage required** | ≥ 60% | ≥ 85% |
-
-> Both environments deploy **automatically and independently**: a change on the testing branch never affects production, and vice versa.
-
----
-
-## ⚙️ CI/CD Pipelines
-
-**Two independent pipelines** were implemented on Github Actions :
-
-```
-🧪 Testing Pipeline                       🚀 Production Pipeline
-──────────────────────                    ──────────────────────
-1️⃣  Install dependencies                  1️⃣  Install dependencies
-2️⃣  Build                                 2️⃣  Build
-3️⃣  Run tests                             3️⃣  Run tests
-4️⃣  Validate coverage (≥ 60%)             4️⃣  Validate coverage (≥ 85%)
-5️⃣  Deploy to Testing environment         5️⃣  Deploy to Production environment
-```
-
-Each stage is a **quality gate**: if any step fails, the pipeline stops immediately and **nothing gets deployed**.
-
----
-
-## ✅ Quality rules (Quality Gates)
-
-| Rule | Testing | Production |
-|---|:---:|:---:|
-| The pipeline stops if any test fails | ✅ | ✅ |
-| Minimum code coverage | **60%** | **85%** |
-| Allowed failing tests | **0** | **0** |
-| Automatic deployment if rules are met | ✅ | ✅ |
+- **AWS CloudWatch** — selective EKS control-plane logging (`api` log type only, short retention) to keep usage within the AWS Free Tier, plus a CloudWatch Alarm on the ECS service's `CPUUtilization` that notifies an email address via **SNS**.
+- **Grafana Cloud + OpenTelemetry** — both this API and the ECS orchestrator are instrumented with the OpenTelemetry Node.js SDK (auto-instrumentation for HTTP/Express and the AWS SDK), exporting traces and metrics directly via OTLP to Grafana Cloud (Tempo for traces, Mimir for metrics). Trace context is propagated through the SQS message attributes, so a request's full journey across services is visible as a single distributed trace.
 
 ---
 
 ## 🐳 Docker
 
-The project is fully containerized with a `Dockerfile` (for the API) and `docker-compose.yml` (to run the API + database together locally).
+The project is fully containerized with a `Dockerfile`.
 
 ```bash
-# Start API + database
-docker compose up --build
+# Build the image
+docker build -t ecommerce-api .
 
-# Stop and clean up containers
-docker compose down
+# Run the container
+docker run -p 3000:3000 --env-file .env ecommerce-api
 ```
 
 ---
 
 ## 🔐 Environment variables
 
-Copy `.env.example` to `.env` and  the values:
+Copy `.env.template` to `.env` and fill in the values:
 
 ```env
-# Database - direct connection (used for migrations)
+# Environment: development / test / production
+NODE_ENV=
+
+# Database (AWS RDS)
 DATABASE_URL=
-IS_PRODUCTION=
+
+# Multi-cloud clusters URL:
+GCP_CLUSTER_URL=
+OCI_CLUSTER_URL=
+
+# Observability (Grafana Cloud / OpenTelemetry)
+OTEL_SERVICE_NAME=
+OTEL_EXPORTER_OTLP_ENDPOINT=
+OTEL_EXPORTER_OTLP_HEADERS=
 ```
 
 ---
@@ -158,13 +161,13 @@ IS_PRODUCTION=
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/jfpa11100/ecommerce-backend
+git clone https://github.com/jfpa11100/ecommerce-api
 
 # 2. Install dependencies
 pnpm install
 
 # 3. Set up environment variables
-cp .env.example .env
+cp .env.template .env.development
 
 # 4. Start the development server
 pnpm dev
@@ -174,18 +177,14 @@ The API will be available at `http://localhost:3000`.
 
 ---
 
-## 🧪 Testing and coverage
+## 🧪 Testing
 
 ```bash
 # Run tests
 pnpm test
-
-# Run tests with a coverage report
-pnpm test:coverage
 ```
 
 ---
-
 
 ## 👥 Author
 
@@ -197,5 +196,3 @@ pnpm test:coverage
 **Course / Emphasis:** DevOps
 
 Made with ☕ and lots of commits with GitMoji
-
-</div>
