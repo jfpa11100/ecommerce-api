@@ -32,7 +32,7 @@ resource "aws_db_instance" "postgres" {
   publicly_accessible    = false
   multi_az               = var.db_multi_az
 
-  backup_retention_period = 7
+  backup_retention_period = 1
 
   # Values for an academic exercise. 
   # In production: deletion_protection = true and skip_final_snapshot = false.
