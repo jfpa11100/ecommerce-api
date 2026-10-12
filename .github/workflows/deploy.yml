@@ -29,6 +29,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: DEBUG - qué identidad presento
+        run: |
+          echo "ARN configurado: '${{ vars.AWS_ROLE_ARN }}'"
+          echo "evento=${{ github.event_name }} ref=${{ github.ref }} repo=${{ github.repository }}"
+          python3 - <<'EOF'
+          import os, json, base64, urllib.request
+          url = os.environ["ACTIONS_ID_TOKEN_REQUEST_URL"] + "&audience=sts.amazonaws.com"
+          req = urllib.request.Request(url, headers={"Authorization": "bearer " + os.environ["ACTIONS_ID_TOKEN_REQUEST_TOKEN"]})
+          token = json.load(urllib.request.urlopen(req))["value"]
+          payload = token.split(".")[1]
+          payload += "=" * (-len(payload) % 4)
+          claims = json.loads(base64.urlsafe_b64decode(payload))
+          print("sub =", claims["sub"])
+          print("aud =", claims["aud"])
+          EOF
+
       - name: Credenciales AWS (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
