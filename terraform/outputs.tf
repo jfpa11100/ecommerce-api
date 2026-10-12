@@ -16,3 +16,7 @@ output "rds_endpoint" {
 output "ecs_cluster_name" {
   value = aws_ecs_cluster.main.name
 }
+
+output "db_init_log_group" {
+  value = aws_cloudwatch_log_group.db_init.name
+}

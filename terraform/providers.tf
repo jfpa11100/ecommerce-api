@@ -12,6 +12,13 @@ terraform {
       version = "~> 3.5"
     }
   }
+
+  backend "s3" {
+    key            = "ecommerce-api/prod/terraform.tfstate"
+    region         = "us-east-2"
+    use_lockfile   = true
+    encrypt        = true
+  }
 }
 
 provider "aws" {

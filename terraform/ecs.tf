@@ -27,6 +27,7 @@ resource "aws_ecs_task_definition" "app" {
     name      = "api"
     image     = "${aws_ecr_repository.app.repository_url}:${var.image_tag}"
     essential = true
+    wait_for_steady_state = true
 
     portMappings = [{
       containerPort = var.container_port
@@ -77,5 +78,8 @@ resource "aws_ecs_service" "app" {
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
 
-  depends_on = [aws_lb_listener.http]
+  depends_on = [
+    aws_lb_listener.http,
+    terraform_data.db_schema
+  ]
 }

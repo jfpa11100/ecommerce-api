@@ -91,3 +91,21 @@ variable "db_multi_az" {
   type        = bool
   default     = false
 }
+
+variable "db_init_image" {
+  description = "Client psql Image "
+  type        = string
+  default     = "public.ecr.aws/docker/library/postgres:16-alpine"
+}
+
+variable "schema_sql_path" {
+  description = "SQL schema file path, relative to the terraform folder"
+  type        = string
+  default     = "../docker/init.sql"
+}
+
+variable "db_init_log_retention_days" {
+  description = "Log retention days for the initialization task"
+  type        = number
+  default     = 1
+}
