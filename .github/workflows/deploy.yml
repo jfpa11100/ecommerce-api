@@ -1,0 +1,79 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # OIDC
+  contents: read
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-2
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  TF_DIR: terraform
+  DOCKER_CONTEXT: .
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Credenciales AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Instalar Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~> 1.10"
+          terraform_wrapper: false  
+
+      - name: Terraform init
+        run: terraform -chdir=$TF_DIR init -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+
+      - name: Terraform fmt y validate
+        run: |
+          terraform -chdir=$TF_DIR fmt -check -recursive
+          terraform -chdir=$TF_DIR validate
+
+      - name: 1) Crear solo el ECR
+        run: |
+          terraform -chdir=$TF_DIR apply -auto-approve \
+            -target=aws_ecr_repository.app \
+            -var="image_tag=${{ github.sha }}"
+
+      - name: Login en ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: 2) Construir y subir la imagen
+        run: |
+          REPO_URL=$(terraform -chdir=$TF_DIR show -json \
+            | jq -r '.values.root_module.resources[] | select(.address=="aws_ecr_repository.app") | .values.repository_url')
+          docker build -t "$REPO_URL:${{ github.sha }}" $DOCKER_CONTEXT
+          docker push "$REPO_URL:${{ github.sha }}"
+
+      - name: 3) Terraform apply completo (RDS + esquema + ECS)
+        run: |
+          terraform -chdir=$TF_DIR apply -auto-approve \
+            -var="image_tag=${{ github.sha }}"
+
+      - name: 4) Smoke test
+        run: |
+          API_URL=$(terraform -chdir=$TF_DIR output -raw api_url)
+          echo "Probando $API_URL/health"
+          curl --fail --silent --show-error \
+            --retry 20 --retry-delay 10 --retry-all-errors \
+            "$API_URL/health"
