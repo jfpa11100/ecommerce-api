@@ -24,9 +24,9 @@ resource "aws_ecs_task_definition" "app" {
   task_role_arn            = aws_iam_role.ecs_task.arn
 
   container_definitions = jsonencode([{
-    name      = "api"
-    image     = "${aws_ecr_repository.app.repository_url}:${var.image_tag}"
-    essential = true
+    name                  = "api"
+    image                 = "${aws_ecr_repository.app.repository_url}:${var.image_tag}"
+    essential             = true
     wait_for_steady_state = true
 
     portMappings = [{

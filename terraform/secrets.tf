@@ -7,6 +7,6 @@ resource "aws_secretsmanager_secret" "db_url" {
 }
 
 resource "aws_secretsmanager_secret_version" "db_url" {
-  secret_id = aws_secretsmanager_secret.db_url.id
+  secret_id     = aws_secretsmanager_secret.db_url.id
   secret_string = "postgresql://${var.db_username}:${random_password.db.result}@${aws_db_instance.postgres.address}:${aws_db_instance.postgres.port}/${var.db_name}"
 }

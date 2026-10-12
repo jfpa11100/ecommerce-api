@@ -14,10 +14,10 @@ terraform {
   }
 
   backend "s3" {
-    key            = "ecommerce-api/prod/terraform.tfstate"
-    region         = "us-east-2"
-    use_lockfile   = true
-    encrypt        = true
+    key          = "ecommerce-api/prod/terraform.tfstate"
+    region       = "us-east-2"
+    use_lockfile = true
+    encrypt      = true
   }
 }
 
