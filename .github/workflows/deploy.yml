@@ -18,7 +18,7 @@ env:
   TF_IN_AUTOMATION: "true"
   TF_INPUT: "false"
   TF_DIR: terraform
-  DOCKER_CONTEXT: .
+  BUILD_CONTEXT: .
 
 jobs:
   deploy:
@@ -78,7 +78,7 @@ jobs:
         run: |
           REPO_URL=$(terraform -chdir=$TF_DIR show -json \
             | jq -r '.values.root_module.resources[] | select(.address=="aws_ecr_repository.app") | .values.repository_url')
-          docker build -t "$REPO_URL:${{ github.sha }}" $DOCKER_CONTEXT
+          docker build -t "$REPO_URL:${{ github.sha }}" $BUILD_CONTEXT
           docker push "$REPO_URL:${{ github.sha }}"
 
       - name: 3) Terraform apply completo (RDS + esquema + ECS)
