@@ -109,3 +109,56 @@ variable "db_init_log_retention_days" {
   type        = number
   default     = 1
 }
+# ---------- Canary / CodeDeploy ----------
+variable "image_digest" {
+  description = "Digest de la imagen en ECR (sha256:...). Si se define, se usa en lugar de image_tag (artefacto inmutable)"
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.image_digest == "" || can(regex("^sha256:[a-f0-9]{64}$", var.image_digest))
+    error_message = "image_digest debe tener el formato sha256:<64 caracteres hexadecimales>."
+  }
+}
+
+variable "app_version" {
+  description = "Version de la aplicacion de la task definition base (la API la devuelve en X-App-Version)"
+  type        = string
+  default     = "v2"
+}
+
+variable "app_track" {
+  description = "Track de la task definition base: stable o canary (la API lo devuelve en X-App-Track)"
+  type        = string
+  default     = "stable"
+}
+
+variable "test_listener_port" {
+  description = "Puerto del listener de pruebas del ALB (Etapa 0 del canary)"
+  type        = number
+  default     = 8080
+}
+
+variable "test_listener_cidrs" {
+  description = "CIDRs con acceso al listener de pruebas, p. ej. [\"203.0.113.10/32\"]. Vacio = puerto cerrado"
+  type        = list(string)
+  default     = []
+}
+
+variable "codedeploy_deployment_config" {
+  description = "Configuracion de despliegue de CodeDeploy para ECS (reparto de trafico)"
+  type        = string
+  default     = "CodeDeployDefault.ECSCanary10Percent5Minutes"
+}
+
+variable "codedeploy_ready_wait_minutes" {
+  description = "Minutos que espera CodeDeploy en la Etapa 0 a que el pipeline apruebe el paso a trafico real"
+  type        = number
+  default     = 60
+}
+
+variable "codedeploy_termination_wait_minutes" {
+  description = "Minutos que se conserva la version anterior tras promover (ventana de rollback)"
+  type        = number
+  default     = 5
+}
