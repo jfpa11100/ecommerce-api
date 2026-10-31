@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS public.products (
     description TEXT NOT NULL,
     price NUMERIC(9, 2) NOT NULL,
     amount_available INTEGER DEFAULT 0,
+    category TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     commerce_nit INTEGER NOT NULL
         REFERENCES public.commerce(nit)
