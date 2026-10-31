@@ -1,0 +1,210 @@
+name: Release (despliegue progresivo)
+
+# Se ejecuta manualmente: Actions -> "Release (despliegue progresivo)" -> Run workflow
+on:
+  workflow_dispatch:
+    inputs:
+      app_version:
+        description: "Version de la release (se le agrega el SHA corto), p. ej. v3.0.0"
+        required: true
+        default: "v3.0.0"
+      step_percent:
+        description: "% de trafico real que se mueve en cada paso (3 a 100)"
+        required: true
+        default: "10"
+      step_bake_minutes:
+        description: "Minutos de observacion tras cada paso"
+        required: true
+        default: "2"
+      final_bake_minutes:
+        description: "Minutos que se conserva la version anterior tras llegar al 100% (ventana de rollback)"
+        required: true
+        default: "5"
+      stage0_timeout_minutes:
+        description: "Minutos maximos de la Etapa 0 (pausa con 0% de trafico) antes de revertir"
+        required: true
+        default: "15"
+      alarm_names:
+        description: "Alarmas de CloudWatch (separadas por coma) que revierten el despliegue. Vacio = ninguna"
+        required: false
+        default: ""
+      finalize_as_stable:
+        description: "Al terminar, relanzar la misma imagen con TRACK=stable"
+        type: boolean
+        default: true
+
+permissions:
+  id-token: write # OIDC
+  contents: read
+
+# Mismo grupo que deploy.yml: nunca corren a la vez
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-2
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  TF_DIR: terraform
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validar parametros y calcular tiempo maximo
+        env:
+          IN_VERSION: ${{ inputs.app_version }}
+          IN_STEP: ${{ inputs.step_percent }}
+          IN_BAKE: ${{ inputs.step_bake_minutes }}
+          IN_FINAL: ${{ inputs.final_bake_minutes }}
+          IN_STAGE0: ${{ inputs.stage0_timeout_minutes }}
+        run: |
+          [[ "$IN_VERSION" =~ ^[A-Za-z0-9._-]{1,40}$ ]] || { echo "::error::app_version solo admite letras, numeros, punto, guion y guion bajo"; exit 1; }
+          for v in IN_STEP IN_BAKE IN_FINAL IN_STAGE0; do
+            [[ "${!v}" =~ ^[0-9]{1,3}$ ]] || { echo "::error::$v debe ser un numero entero"; exit 1; }
+          done
+          if [ "$IN_STEP" -lt 3 ] || [ "$IN_STEP" -gt 100 ]; then echo "::error::step_percent debe estar entre 3 y 100"; exit 1; fi
+          STEPS=$(( (100 + IN_STEP - 1) / IN_STEP ))
+          MAX_WAIT=$(( STEPS * (IN_BAKE + 3) + IN_FINAL + IN_STAGE0 + 20 ))
+          echo "RELEASE_VERSION=${IN_VERSION}-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          echo "MAX_WAIT_MINUTES=$MAX_WAIT" >> "$GITHUB_ENV"
+          echo "Release: ${IN_VERSION}-${GITHUB_SHA::7} | pasos: $STEPS | espera maxima: ${MAX_WAIT} min"
+
+      - name: Credenciales AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Instalar Terraform (solo para leer los outputs)
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~> 1.10"
+          terraform_wrapper: false
+
+      - name: Terraform init
+        run: terraform -chdir=$TF_DIR init -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+
+      - name: Leer outputs de la infraestructura
+        run: |
+          terraform -chdir=$TF_DIR output -json > "$RUNNER_TEMP/tf-outputs.json"
+          missing=0
+          for pair in API_URL:api_url TEST_URL:test_url ECR_REPO_URL:ecr_repository_url \
+                      CLUSTER_NAME:ecs_cluster_name SERVICE_NAME:ecs_service_name \
+                      SUBNET_IDS:private_subnet_ids ECS_SG_ID:ecs_security_group_id \
+                      EXEC_ROLE_ARN:ecs_execution_role_arn DB_SECRET_ARN:db_url_secret_arn \
+                      DB_LOG_GROUP:db_init_log_group ALB_SG_ID:alb_security_group_id \
+                      TEST_PORT:test_listener_port; do
+            var="${pair%%:*}"; key="${pair##*:}"
+            val="$(jq -r --arg k "$key" '.[$k].value // empty' "$RUNNER_TEMP/tf-outputs.json")"
+            if [ -z "$val" ]; then
+              echo "::error::Falta el output '$key'. Aplica primero el workflow de infraestructura con el outputs.tf actualizado."
+              missing=1
+            fi
+            echo "$var=$val" >> "$GITHUB_ENV"
+          done
+          [ "$missing" -eq 0 ]
+
+      - name: Login en ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: 1) Imagen inmutable (reusar o construir)
+        id: image
+        run: |
+          REPO_NAME="${ECR_REPO_URL#*/}"
+          digest_of() {
+            aws ecr describe-images --repository-name "$REPO_NAME" --image-ids imageTag="$GITHUB_SHA" \
+              --query 'imageDetails[0].imageDigest' --output text 2>/dev/null || true
+          }
+          DIGEST="$(digest_of)"
+          if [ -n "$DIGEST" ] && [ "$DIGEST" != "None" ]; then
+            echo "La imagen de este commit ya existe en ECR: se reutiliza (no se reconstruye)."
+          else
+            docker build -t "$ECR_REPO_URL:$GITHUB_SHA" .
+            docker push "$ECR_REPO_URL:$GITHUB_SHA"
+            DIGEST="$(digest_of)"
+          fi
+          [ -n "$DIGEST" ] && [ "$DIGEST" != "None" ] || { echo "::error::No se pudo obtener el digest de la imagen"; exit 1; }
+          echo "image_uri=$ECR_REPO_URL@$DIGEST" >> "$GITHUB_OUTPUT"
+          echo "Imagen inmutable: $ECR_REPO_URL@$DIGEST"
+
+      - name: 2) Migracion de base de datos (Expand)
+        env:
+          SECURITY_GROUP_ID: ${{ env.ECS_SG_ID }}
+          EXECUTION_ROLE_ARN: ${{ env.EXEC_ROLE_ARN }}
+          DB_URL_SECRET_ARN: ${{ env.DB_SECRET_ARN }}
+          LOG_GROUP: ${{ env.DB_LOG_GROUP }}
+        run: |
+          export MIGRATE_FAMILY="${CLUSTER_NAME%-cluster}-db-migrate"
+          bash scripts/db-migrate.sh
+
+      - name: 3) Abrir el puerto de pruebas a este runner
+        run: |
+          RUNNER_IP="$(curl -fsS https://checkip.amazonaws.com | tr -d '[:space:]')"
+          echo "RUNNER_IP=$RUNNER_IP" >> "$GITHUB_ENV"
+          if ! out=$(aws ec2 authorize-security-group-ingress --group-id "$ALB_SG_ID" \
+                 --protocol tcp --port "$TEST_PORT" --cidr "${RUNNER_IP}/32" 2>&1); then
+            case "$out" in
+              *InvalidPermission.Duplicate*) echo "La regla ya existia" ;;
+              *) echo "$out" >&2; exit 1 ;;
+            esac
+          fi
+
+      - name: 4) Despliegue progresivo (Etapa 0 -> 1 -> 2 -> 3)
+        env:
+          MODE: canary
+          IMAGE_URI: ${{ steps.image.outputs.image_uri }}
+          APP_VERSION: ${{ env.RELEASE_VERSION }}
+          STEP_PERCENT: ${{ inputs.step_percent }}
+          STEP_BAKE_MINUTES: ${{ inputs.step_bake_minutes }}
+          FINAL_BAKE_MINUTES: ${{ inputs.final_bake_minutes }}
+          STAGE0_TIMEOUT_MINUTES: ${{ inputs.stage0_timeout_minutes }}
+          ALARM_NAMES: ${{ inputs.alarm_names }}
+          SAMPLER_URL: ${{ env.API_URL }}/version
+          SAMPLER_OUT: ${{ runner.temp }}/traffic-1-canary.csv
+        run: bash scripts/ecs-release.sh
+
+      - name: 5) Marcar la version promovida como stable
+        if: ${{ inputs.finalize_as_stable }}
+        env:
+          MODE: finalize
+          SAMPLER_URL: ${{ env.API_URL }}/version
+          SAMPLER_OUT: ${{ runner.temp }}/traffic-2-finalize.csv
+        run: bash scripts/ecs-release.sh
+
+      - name: Cerrar el puerto de pruebas
+        if: always()
+        run: |
+          if [ -n "${RUNNER_IP:-}" ] && [ -n "${ALB_SG_ID:-}" ]; then
+            aws ec2 revoke-security-group-ingress --group-id "$ALB_SG_ID" \
+              --protocol tcp --port "$TEST_PORT" --cidr "${RUNNER_IP}/32" || true
+          fi
+
+      - name: Resumen de trafico por track
+        if: always()
+        run: |
+          {
+            echo "## Release ${RELEASE_VERSION:-?}"
+            for f in "$RUNNER_TEMP"/traffic-*.csv; do
+              [ -s "$f" ] || continue
+              echo "### $(basename "$f")"
+              echo '```'
+              bash scripts/traffic-summary.sh "$f"
+              echo '```'
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Guardar la evidencia (muestreo de trafico)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidencia-trafico-${{ github.run_id }}
+          path: ${{ runner.temp }}/traffic-*.csv
+          if-no-files-found: ignore

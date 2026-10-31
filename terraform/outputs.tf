@@ -47,3 +47,11 @@ output "ecs_execution_role_arn" {
 output "db_url_secret_arn" {
   value = aws_secretsmanager_secret.db_url.arn
 }
+
+output "alb_security_group_id" {
+  value = aws_security_group.alb.id
+}
+
+output "test_listener_port" {
+  value = var.test_listener_port
+}
