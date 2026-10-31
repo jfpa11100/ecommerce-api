@@ -1,6 +1,7 @@
 # ---------------------------------------
 # Amazon ALB: Application Load Balancer
-# Blue/Green para CodeDeploy: 2 target groups + listener de produccion + listener de pruebas
+# Despliegues nativos de ECS (canary): 2 target groups + listener de produccion
+# + listener de pruebas
 # ---------------------------------------
 
 resource "aws_lb" "main" {
@@ -35,7 +36,6 @@ moved {
   to   = aws_lb_target_group.blue
 }
 
-# Target group "green": recibe las tareas de la nueva version (canary).
 resource "aws_lb_target_group" "green" {
   name        = "${var.project_name}-${var.environment}-tg-green"
   port        = var.container_port
@@ -55,7 +55,7 @@ resource "aws_lb_target_group" "green" {
   deregistration_delay = 30
 }
 
-# Listener de Producción (puerto 80): CodeDeploy reparte aqui el trafico real
+# ---------- Listener de Producción (puerto 80) ----------
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = 80
@@ -65,14 +65,41 @@ resource "aws_lb_listener" "http" {
     type             = "forward"
     target_group_arn = aws_lb_target_group.blue.arn
   }
+}
 
+# ECS reparte el trafico real cambiando los PESOS de esta regla durante el canary
+# (100/0 al inicio; p. ej. 90/10 durante el canary; 0/100 al promover).
+resource "aws_lb_listener_rule" "production" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 1
+
+  action {
+    type = "forward"
+    forward {
+      target_group {
+        arn    = aws_lb_target_group.blue.arn
+        weight = 100
+      }
+      target_group {
+        arn    = aws_lb_target_group.green.arn
+        weight = 0
+      }
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = ["/*"]
+    }
+  }
+
+  # ECS modifica los pesos en cada despliegue; Terraform no debe revertirlos.
   lifecycle {
-    ignore_changes = [default_action]
+    ignore_changes = [action]
   }
 }
 
-# Listener de Pruebas (Etapa 0): trafico 0% publico. Solo llega la gente que
-# conoce el puerto y esta permitida en el security group.
+# ---------- Listener de PRUEBAS (Etapa 0: 0% publico) ----------
 resource "aws_lb_listener" "test" {
   load_balancer_arn = aws_lb.main.arn
   port              = var.test_listener_port
@@ -82,8 +109,34 @@ resource "aws_lb_listener" "test" {
     type             = "forward"
     target_group_arn = aws_lb_target_group.green.arn
   }
+}
+
+# Por este puerto solo llega el trafico de prueba hacia la revision nueva.
+resource "aws_lb_listener_rule" "test" {
+  listener_arn = aws_lb_listener.test.arn
+  priority     = 1
+
+  action {
+    type = "forward"
+    forward {
+      target_group {
+        arn    = aws_lb_target_group.blue.arn
+        weight = 0
+      }
+      target_group {
+        arn    = aws_lb_target_group.green.arn
+        weight = 100
+      }
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = ["/*"]
+    }
+  }
 
   lifecycle {
-    ignore_changes = [default_action]
+    ignore_changes = [action]
   }
 }

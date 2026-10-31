@@ -109,7 +109,7 @@ variable "db_init_log_retention_days" {
   type        = number
   default     = 1
 }
-# ---------- Canary / CodeDeploy ----------
+# ---------- Canary (despliegues nativos de ECS) ----------
 variable "image_digest" {
   description = "Digest de la imagen en ECR (sha256:...). Si se define, se usa en lugar de image_tag (artefacto inmutable)"
   type        = string
@@ -145,20 +145,20 @@ variable "test_listener_cidrs" {
   default     = []
 }
 
-variable "codedeploy_deployment_config" {
-  description = "Configuracion de despliegue de CodeDeploy para ECS (reparto de trafico)"
-  type        = string
-  default     = "CodeDeployDefault.ECSCanary10Percent5Minutes"
-}
-
-variable "codedeploy_ready_wait_minutes" {
-  description = "Minutos que espera CodeDeploy en la Etapa 0 a que el pipeline apruebe el paso a trafico real"
+variable "canary_percent" {
+  description = "Porcentaje de trafico real que recibe la revision nueva durante el canary"
   type        = number
-  default     = 60
+  default     = 10
 }
 
-variable "codedeploy_termination_wait_minutes" {
-  description = "Minutos que se conserva la version anterior tras promover (ventana de rollback)"
+variable "canary_bake_time_minutes" {
+  description = "Minutos de observacion con el trafico canary antes de mover el resto"
+  type        = number
+  default     = 5
+}
+
+variable "deployment_bake_time_minutes" {
+  description = "Minutos que se conserva la revision anterior tras mover todo el trafico (ventana de rollback)"
   type        = number
   default     = 5
 }
