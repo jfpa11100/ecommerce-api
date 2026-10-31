@@ -176,7 +176,7 @@ DEPLOY_CONFIG=$(jq -n \
         lifecycleStages: ["POST_TEST_TRAFFIC_SHIFT"],
         timeoutConfiguration: {timeoutInMinutes: $timeout, action: "ROLLBACK"}
       }]
-    else . end
+    else [] end
   | if $alarms != "" then
       .alarms = {alarmNames: ($alarms | split(",")), rollback: true, enable: true}
     else . end')
@@ -195,19 +195,33 @@ aws ecs update-service --cluster "$CLUSTER_NAME" --service "$SERVICE_NAME" \
   --task-definition "$NEW_TD" --deployment-configuration "$DEPLOY_CONFIG" >/dev/null
 log "Despliegue solicitado"
 
+# No asumir que serviceDeployments[0] es nuestro despliegue.
+# targetServiceRevision solo contiene el ARN de la revision del servicio;
+# hay que resolver esa revision con describe-service-revisions para obtener
+# la Task Definition que realmente utiliza.
 for _ in $(seq 1 24); do
   CANDIDATE_ARNS=$(aws ecs list-service-deployments --cluster "$CLUSTER_NAME" --service "$SERVICE_NAME" \
     --status PENDING IN_PROGRESS --query 'serviceDeployments[].serviceDeploymentArn' --output text)
+
   for CANDIDATE_ARN in $CANDIDATE_ARNS; do
     CANDIDATE_DESC=$(aws ecs describe-service-deployments \
       --service-deployment-arns "$CANDIDATE_ARN" \
       --query 'serviceDeployments[0]' --output json)
-    CANDIDATE_TD=$(jq -r '.targetServiceRevision.taskDefinition // empty' <<<"$CANDIDATE_DESC")
+
+    CANDIDATE_REVISION_ARN=$(jq -r '.targetServiceRevision.arn // empty' <<<"$CANDIDATE_DESC")
+    [ -n "$CANDIDATE_REVISION_ARN" ] || continue
+
+    CANDIDATE_TD=$(aws ecs describe-service-revisions \
+      --service-revision-arns "$CANDIDATE_REVISION_ARN" \
+      --query 'serviceRevisions[0].taskDefinition' \
+      --output text 2>/dev/null || true)
+
     if [ "$CANDIDATE_TD" = "$NEW_TD" ]; then
       DEPLOY_ARN="$CANDIDATE_ARN"
       break 2
     fi
   done
+
   sleep 5
 done
 [ -n "$DEPLOY_ARN" ] || {
