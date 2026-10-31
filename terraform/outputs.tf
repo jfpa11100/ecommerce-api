@@ -30,3 +30,20 @@ output "ecs_service_name" {
   value = aws_ecs_service.app.name
 }
 
+# ---------- Used by the workflow release (migrations and deployments) ----------
+output "private_subnet_ids" {
+  description = "Private subnets (comma-separated) for one-time tasks"
+  value       = join(",", aws_subnet.private[*].id)
+}
+
+output "ecs_security_group_id" {
+  value = aws_security_group.ecs.id
+}
+
+output "ecs_execution_role_arn" {
+  value = aws_iam_role.ecs_execution.arn
+}
+
+output "db_url_secret_arn" {
+  value = aws_secretsmanager_secret.db_url.arn
+}
