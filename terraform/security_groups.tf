@@ -15,6 +15,18 @@ resource "aws_security_group" "alb" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # Allows access to the canary test listener only if the list of CIDRs is not empty.
+  dynamic "ingress" {
+    for_each = length(var.test_listener_cidrs) > 0 ? [1] : []
+    content {
+      description = "Canary test listener (acceso interno de pruebas)"
+      from_port   = var.test_listener_port
+      to_port     = var.test_listener_port
+      protocol    = "tcp"
+      cidr_blocks = var.test_listener_cidrs
+    }
+  }
+
   egress {
     description = "All outgoing traffic"
     from_port   = 0
