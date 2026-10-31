@@ -4,6 +4,7 @@ import { errorHandler } from './middlewares/error-handler.ts';
 import { versionHeaders, APP_VERSION, APP_TRACK, INSTANCE_ID } from './middlewares/version-headers.ts';
 import v1Router from './api/routes/v1/index.ts';
 import v2Router from './api/routes/v2/index.ts';
+import v3Router from './api/routes/v3/index.ts';
 
 const PORT = process.env.PORT || 3000;
 const startedAt = new Date().toISOString();
@@ -17,6 +18,7 @@ app.use(express.json())
 // Routes
 app.use('/api/v1', v1Router)
 app.use('/api/v2', v2Router)
+app.use('/api/v3', v3Router)
 
 app.use(errorHandler)
 
@@ -30,7 +32,7 @@ app.get('/version', (_req, res) => {
     track: APP_TRACK,
     instance: INSTANCE_ID,
     startedAt,
-    apiVersions: ['v1', 'v2'],
+    apiVersions: ['v1', 'v2', 'v3'],
   })
 })
 
