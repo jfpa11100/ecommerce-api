@@ -109,7 +109,7 @@ variable "db_init_log_retention_days" {
   type        = number
   default     = 1
 }
-# ---------- Canary (despliegues nativos de ECS) ----------
+# ---------- Progressive Deployment (Native ECS) ----------
 variable "image_digest" {
   description = "Digest de la imagen en ECR (sha256:...). Si se define, se usa en lugar de image_tag (artefacto inmutable)"
   type        = string
@@ -145,16 +145,16 @@ variable "test_listener_cidrs" {
   default     = []
 }
 
-variable "canary_percent" {
-  description = "Porcentaje de trafico real que recibe la revision nueva durante el canary"
+variable "linear_step_percent" {
+  description = "Porcentaje de trafico real que se mueve a la revision nueva en cada paso (3 a 100)"
   type        = number
   default     = 10
 }
 
-variable "canary_bake_time_minutes" {
-  description = "Minutos de observacion con el trafico canary antes de mover el resto"
+variable "linear_step_bake_time_minutes" {
+  description = "Minutos de observacion despues de cada paso de trafico"
   type        = number
-  default     = 5
+  default     = 2
 }
 
 variable "deployment_bake_time_minutes" {

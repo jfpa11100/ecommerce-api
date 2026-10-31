@@ -1,5 +1,5 @@
 # --------- Amazon ECS Fargate (+ CloudWatch Logs) ----------
-# El servicio usa los despliegues nativos de ECS con estrategia CANARY.
+# El servicio usa los despliegues nativos de ECS con estrategia LINEAL.
 # Terraform crea el servicio y una task definition "base"; los releases
 # posteriores los hace el pipeline (task definition nueva + aws ecs update-service),
 
@@ -62,6 +62,7 @@ resource "aws_ecs_task_definition" "app" {
       }
     }
   }])
+  skip_destroy = true
 }
 
 resource "aws_ecs_service" "app" {
@@ -75,17 +76,17 @@ resource "aws_ecs_service" "app" {
     type = "ECS"
   }
 
-  # Estrategia canary nativa: primero un % pequeno de trafico real a la revision
-  # nueva, espera canary_bake_time_in_minutes, y luego mueve el resto.
+  # Plan base: reparto LINEAL (pasos iguales de trafico real hacia la revision
+  # nueva, con un tiempo de observacion tras cada paso).
   # bake_time_in_minutes: tiempo que se conserva la revision anterior tras
   # mover todo el trafico (ventana de rollback rapido).
   deployment_configuration {
-    strategy             = "CANARY"
+    strategy             = "LINEAR"
     bake_time_in_minutes = var.deployment_bake_time_minutes
 
-    canary_configuration {
-      canary_percent              = var.canary_percent
-      canary_bake_time_in_minutes = var.canary_bake_time_minutes
+    linear_configuration {
+      step_percent              = var.linear_step_percent
+      step_bake_time_in_minutes = var.linear_step_bake_time_minutes
     }
   }
 
@@ -109,9 +110,9 @@ resource "aws_ecs_service" "app" {
     }
   }
 
-  # Los releases cambian la task definition desde el pipeline.
+  # El pipeline de release cambia la task definition y el plan de despliegue.
   lifecycle {
-    ignore_changes = [task_definition]
+    ignore_changes = [task_definition, deployment_configuration]
   }
 
   depends_on = [
