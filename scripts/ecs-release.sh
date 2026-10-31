@@ -26,8 +26,79 @@ WORK="$(mktemp -d)"
 DEPLOY_ARN=""
 FINISHED=0
 SAMPLER_PID=""
+NEW_TD=""
+DESC=""
 
 log() { echo "[$(date -u +%H:%M:%S)] $*"; }
+
+# Imprime evidencia adicional para diagnosticar fallos de ECS.
+print_failure_diagnostics() {
+  local title="${1:-Diagnostico ECS}"
+  log "######## $title ########"
+
+  if [ -n "$DESC" ]; then
+    echo "$DESC" | jq '{
+      status,
+      statusReason,
+      failureCode,
+      failureReason,
+      sourceServiceRevision,
+      targetServiceRevision,
+      alarms,
+      lifecycleHookDetails,
+      deploymentConfiguration
+    }' >&2 || true
+  fi
+
+  log "Eventos recientes del servicio:"
+  aws ecs describe-services \
+    --cluster "$CLUSTER_NAME" \
+    --services "$SERVICE_NAME" \
+    --query 'services[0].events[:20]' \
+    --output json >&2 || true
+
+  log "Tareas detenidas asociadas a la nueva Task Definition ($NEW_TD):"
+  local task_arns
+  task_arns=$(aws ecs list-tasks \
+    --cluster "$CLUSTER_NAME" \
+    --service-name "$SERVICE_NAME" \
+    --desired-status STOPPED \
+    --query 'taskArns' \
+    --output json 2>/dev/null | jq -r '.[]?' || true)
+
+  if [ -n "$task_arns" ]; then
+    # describe-tasks admite hasta 100 tareas por llamada.
+    local -a tasks
+    mapfile -t tasks <<< "$task_arns"
+    for ((i=0; i<${#tasks[@]}; i+=100)); do
+      local batch=("${tasks[@]:i:100}")
+      aws ecs describe-tasks \
+        --cluster "$CLUSTER_NAME" \
+        --tasks "${batch[@]}" \
+        --output json 2>/dev/null |
+        jq --arg td "$NEW_TD" '
+          [.tasks[]?
+           | select(.taskDefinitionArn == $td)
+           | {
+               taskArn,
+               taskDefinitionArn,
+               lastStatus,
+               desiredStatus,
+               stoppedReason,
+               stopCode,
+               stoppedAt,
+               containers: [.containers[]? | {
+                 name, lastStatus, exitCode, reason
+               }]
+             }]
+        ' >&2 || true
+    done
+  else
+    log "No se encontraron tareas detenidas para inspeccionar."
+  fi
+
+  log "Fin del diagnostico ECS."
+}
 
 if [ "$MODE" = "canary" ]; then
   : "${IMAGE_URI:?Falta IMAGE_URI (repo@sha256:...)}"
@@ -125,12 +196,25 @@ aws ecs update-service --cluster "$CLUSTER_NAME" --service "$SERVICE_NAME" \
 log "Despliegue solicitado"
 
 for _ in $(seq 1 24); do
-  DEPLOY_ARN=$(aws ecs list-service-deployments --cluster "$CLUSTER_NAME" --service "$SERVICE_NAME" \
-    --status PENDING IN_PROGRESS --query 'serviceDeployments[0].serviceDeploymentArn' --output text)
-  [ -n "$DEPLOY_ARN" ] && [ "$DEPLOY_ARN" != "None" ] && break
-  DEPLOY_ARN=""; sleep 5
+  CANDIDATE_ARNS=$(aws ecs list-service-deployments --cluster "$CLUSTER_NAME" --service "$SERVICE_NAME" \
+    --status PENDING IN_PROGRESS --query 'serviceDeployments[].serviceDeploymentArn' --output text)
+  for CANDIDATE_ARN in $CANDIDATE_ARNS; do
+    CANDIDATE_DESC=$(aws ecs describe-service-deployments \
+      --service-deployment-arns "$CANDIDATE_ARN" \
+      --query 'serviceDeployments[0]' --output json)
+    CANDIDATE_TD=$(jq -r '.targetServiceRevision.taskDefinition // empty' <<<"$CANDIDATE_DESC")
+    if [ "$CANDIDATE_TD" = "$NEW_TD" ]; then
+      DEPLOY_ARN="$CANDIDATE_ARN"
+      break 2
+    fi
+  done
+  sleep 5
 done
-[ -n "$DEPLOY_ARN" ] || { echo "ERROR: no aparecio el despliegue en ECS" >&2; exit 1; }
+[ -n "$DEPLOY_ARN" ] || {
+  echo "ERROR: no se encontro un despliegue cuyo targetServiceRevision use $NEW_TD" >&2
+  print_failure_diagnostics "No se pudo identificar el despliegue solicitado"
+  exit 1
+}
 log "Despliegue: $DEPLOY_ARN"
 
 # --- 5) Vigilar el despliegue; en canary, resolver la Etapa 0 ---
@@ -142,13 +226,27 @@ while :; do
   DESC=$(aws ecs describe-service-deployments --service-deployment-arns "$DEPLOY_ARN" \
     --query 'serviceDeployments[0]' --output json)
   STATUS=$(jq -r '.status' <<<"$DESC")
-  if [ "$STATUS" != "$LAST" ]; then log "Estado del despliegue: $STATUS"; LAST="$STATUS"; fi
+  REASON=$(jq -r '.statusReason // "Sin razon informada"' <<<"$DESC")
+
+  if [ "$STATUS" != "$LAST" ]; then
+    log "Estado del despliegue: $STATUS"
+    log "Motivo: $REASON"
+    LAST="$STATUS"
+  fi
 
   case "$STATUS" in
     SUCCESSFUL)
-      FINISHED=1; log "Despliegue COMPLETADO (100% en la revision nueva)"; break ;;
+      FINISHED=1
+      log "Despliegue COMPLETADO"
+      break
+      ;;
     STOPPED|ROLLBACK_SUCCESSFUL|ROLLBACK_FAILED)
-      FINISHED=1; echo "ERROR: el despliegue termino en estado $STATUS" >&2; exit 1 ;;
+      FINISHED=1
+      echo "ERROR: despliegue terminado en estado $STATUS" >&2
+      echo "Motivo ECS: $REASON" >&2
+      print_failure_diagnostics "Despliegue finalizado con error: $STATUS"
+      exit 1
+      ;;
   esac
 
   if [ "$MODE" = "canary" ] && [ "$GATE_DONE" -eq 0 ] && [ "$ROLLBACK_REQUESTED" -eq 0 ]; then
@@ -168,7 +266,9 @@ while :; do
   fi
 
   if [ "$(date +%s)" -ge "$DEADLINE" ]; then
-    echo "ERROR: tiempo maximo de espera agotado ($MAX_WAIT_MINUTES min)" >&2; exit 1
+    echo "ERROR: tiempo maximo de espera agotado ($MAX_WAIT_MINUTES min)" >&2
+    print_failure_diagnostics "Tiempo maximo de espera agotado"
+    exit 1
   fi
   sleep "$POLL_INTERVAL"
 done
