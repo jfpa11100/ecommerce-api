@@ -17,6 +17,8 @@ STEP_BAKE_MINUTES="${STEP_BAKE_MINUTES:-2}"
 FINAL_BAKE_MINUTES="${FINAL_BAKE_MINUTES:-5}"
 STAGE0_TIMEOUT_MINUTES="${STAGE0_TIMEOUT_MINUTES:-15}"
 ALARM_NAMES="${ALARM_NAMES:-}"
+FAULT_ERROR_RATE="${FAULT_ERROR_RATE:-0}"   # 0..1   -> % de peticiones /api con 500 (solo canary)
+FAULT_LATENCY_MS="${FAULT_LATENCY_MS:-0}"   # ms     -> latencia anadida (solo canary)
 MAX_WAIT_MINUTES="${MAX_WAIT_MINUTES:-80}"
 POLL_INTERVAL="${POLL_INTERVAL:-15}"
 SMOKE_SCRIPT="${SMOKE_SCRIPT:-$(dirname "$0")/smoke-stage0.sh}"
@@ -148,19 +150,35 @@ if [ "$MODE" = "finalize" ]; then
   IMAGE_URI=""
 fi
 
-jq --arg img "${IMAGE_URI:-}" --arg ver "$APP_VERSION" --arg track "$TRACK" '
+CPU_UNITS=$(jq -r '.cpu // ""' "$WORK/td-current.json")
+MEMORY_MB=$(jq -r '.memory // ""' "$WORK/td-current.json")
+
+# Variables que gestiona este script (se quitan y se vuelven a poner):
+#  - APP_VERSION / TRACK: identidad de la version
+#  - TASK_CPU_UNITS / TASK_MEMORY_MB: lo asignado a la tarea (para medir saturacion en %)
+#  - FAULT_*: inyeccion de fallos; SOLO se ponen en el canary y se retiran al finalizar
+jq --arg img "${IMAGE_URI:-}" --arg ver "$APP_VERSION" --arg track "$TRACK" \
+   --arg cpu "$CPU_UNITS" --arg mem "$MEMORY_MB" \
+   --arg ferr "$FAULT_ERROR_RATE" --arg flat "$FAULT_LATENCY_MS" '
   del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities,
       .registeredAt, .registeredBy, .deregisteredAt)
   | (.containerDefinitions[] | select(.name == "api")) |= (
       (if $img != "" then .image = $img else . end)
       | .environment = ((.environment // [])
-          | map(select(.name != "APP_VERSION" and .name != "TRACK"))
-          + [{name: "APP_VERSION", value: $ver}, {name: "TRACK", value: $track}])
+          | map(select(.name as $n | ["APP_VERSION","TRACK","TASK_CPU_UNITS","TASK_MEMORY_MB","FAULT_ERROR_RATE","FAULT_LATENCY_MS"] | index($n) | not))
+          + [{name: "APP_VERSION", value: $ver}, {name: "TRACK", value: $track}]
+          + (if $cpu != "" then [{name: "TASK_CPU_UNITS", value: $cpu}] else [] end)
+          + (if $mem != "" then [{name: "TASK_MEMORY_MB", value: $mem}] else [] end)
+          + (if $track == "canary" and $ferr != "0" then [{name: "FAULT_ERROR_RATE", value: $ferr}] else [] end)
+          + (if $track == "canary" and $flat != "0" then [{name: "FAULT_LATENCY_MS", value: $flat}] else [] end))
     )' "$WORK/td-current.json" > "$WORK/td-new.json"
 
 NEW_TD=$(aws ecs register-task-definition --cli-input-json "file://$WORK/td-new.json" \
   --query taskDefinition.taskDefinitionArn --output text)
 log "Nueva task definition: $NEW_TD (version=$APP_VERSION, track=$TRACK)"
+if [ "$MODE" = "canary" ] && { [ "$FAULT_ERROR_RATE" != "0" ] || [ "$FAULT_LATENCY_MS" != "0" ]; }; then
+  log "ATENCION - INYECCION DE FALLOS ACTIVA en el canary: errorRate=$FAULT_ERROR_RATE latencyMs=$FAULT_LATENCY_MS"
+fi
 
 # --- 2) Plan de despliegue (se sobrescribe en cada release) ---
 jq -n \

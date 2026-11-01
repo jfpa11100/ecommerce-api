@@ -5,6 +5,8 @@ import { versionHeaders, APP_VERSION, APP_TRACK, INSTANCE_ID } from './middlewar
 import v1Router from './api/routes/v1/index.ts';
 import v2Router from './api/routes/v2/index.ts';
 import v3Router from './api/routes/v3/index.ts';
+import { METRICS_ENABLED, METRICS_NAMESPACE, requestMetrics, startResourceSampler } from './middlewares/metrics.ts';
+import { describeFaults, faultInjection } from './middlewares/fault-injection.ts';
 
 const PORT = process.env.PORT || 3000;
 const startedAt = new Date().toISOString();
@@ -12,6 +14,8 @@ const startedAt = new Date().toISOString();
 const app: Express = express();
 
 app.use(versionHeaders)
+app.use(requestMetrics)
+app.use(faultInjection)
 app.use(express.json())
 
 
@@ -33,7 +37,10 @@ app.get('/version', (_req, res) => {
     instance: INSTANCE_ID,
     startedAt,
     apiVersions: ['v1', 'v2', 'v3'],
+    metrics: { enabled: METRICS_ENABLED, namespace: METRICS_NAMESPACE, dimension: 'Track' },
+    faultInjection: describeFaults(),
   })
 })
 
 app.listen(PORT);
+startResourceSampler();
