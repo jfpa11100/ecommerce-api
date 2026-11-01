@@ -1,0 +1,57 @@
+# =============================================================================
+# SLO de decision del despliegue canary  (fuente unica de verdad)
+#
+# Lo leen: las alarmas y el dashboard (Terraform) y el quality gate (pipeline).
+# Cambiar un umbral = commit en este archivo, revisable en un PR.
+#
+# El gate evalua CADA ETAPA (paso de trafico) con las metricas del canary y de
+# stable medidas en la MISMA ventana y bajo la MISMA carga concurrente.
+# Resultado de la evaluacion:
+#   ABORTAR  -> rollback inmediato: 0% hacia canary, 100% hacia stable
+#   PAUSAR   -> no se avanza de etapa; se sigue observando (hasta max_pause_minutes)
+#   PROMOVER -> se avanza a la siguiente etapa
+# =============================================================================
+version: 1
+
+# ---- Representatividad estadistica (comparacion justa) ----------------------
+sampling:
+  # Ventana de observacion de cada etapa. Debe coincidir con el bake time de cada paso.
+  window_minutes: 2
+  # Minimo de peticiones que debe servir CADA track en la ventana para decidir.
+  # Si hay menos, no se promueve: se PAUSA y se espera mas trafico.
+  # Justificacion ("regla de tres"): con 0 errores en n peticiones, la tasa real de
+  # error es < 3/n con 95 % de confianza. Con n = 300 -> < 1 %, que es justo el
+  # umbral de PAUSA de error de este archivo: 300 peticiones permiten afirmar
+  # estadisticamente que se cumple ese umbral.
+  min_requests_per_track: 300
+
+# ---- Umbrales de decision ----------------------------------------------------
+decision:
+  # ABORTAR si se cumple CUALQUIERA de estas condiciones (rollback inmediato)
+  abort:
+    error_rate_5xx_pct: 5.0            # % de respuestas 5xx del canary (absoluto)
+    error_rate_5xx_delta_pct: 3.0      # puntos porcentuales por encima de stable
+    latency_p95_ms: 1000               # p95 del canary (absoluto)
+    latency_p95_ratio_vs_stable: 2.0   # p95 del canary / p95 de stable
+    cpu_pct: 90.0                      # saturacion del canary (% de la CPU asignada)
+    memory_pct: 90.0                   # saturacion del canary (% de la memoria asignada)
+
+  # PAUSAR (mantener la etapa y seguir observando) si se cumple CUALQUIERA,
+  # y no se cumple ninguna de abortar. Tambien se pausa si faltan muestras.
+  pause:
+    error_rate_5xx_pct: 1.0
+    latency_p95_ratio_vs_stable: 1.3
+    low_stock_ratio_delta_pct: 15.0    # metrica de negocio: desviacion vs stable (puntos %)
+
+  # PROMOVER: ninguna condicion de abortar ni de pausar, y muestras suficientes.
+
+  # Si el canary lleva mas de estos minutos en PAUSA seguidos, se ABORTA.
+  max_pause_minutes: 10
+
+# ---- Alarmas de CloudWatch (red de seguridad automatica) ----------------------
+# Estas alarmas reutilizan los umbrales de ABORTAR absolutos y se conectan al
+# despliegue de ECS: si se disparan, ECS hace rollback por si mismo.
+alarms:
+  # No se evalua una tasa si hubo menos peticiones que esto en el minuto
+  # (evita que 1 error de 2 peticiones dispare una alarma del 50 %).
+  min_requests_per_minute: 30
