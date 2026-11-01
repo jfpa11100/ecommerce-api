@@ -163,23 +163,38 @@ NEW_TD=$(aws ecs register-task-definition --cli-input-json "file://$WORK/td-new.
 log "Nueva task definition: $NEW_TD (version=$APP_VERSION, track=$TRACK)"
 
 # --- 2) Plan de despliegue (se sobrescribe en cada release) ---
-DEPLOY_CONFIG=$(jq -n \
+jq -n \
   --argjson step "$STEP_PERCENT" --argjson stepbake "$STEP_BAKE_MINUTES" \
   --argjson bake "$FINAL_BAKE_MINUTES" --argjson timeout "$STAGE0_TIMEOUT_MINUTES" \
   --arg alarms "$ALARM_NAMES" --arg mode "$MODE" '
   {strategy: "LINEAR",
    bakeTimeInMinutes: $bake,
    linearConfiguration: {stepPercent: $step, stepBakeTimeInMinutes: $stepbake}}
-  | if $mode == "canary" then
-      .lifecycleHooks = [{
-        targetType: "PAUSE",
-        lifecycleStages: ["POST_TEST_TRAFFIC_SHIFT"],
-        timeoutConfiguration: {timeoutInMinutes: $timeout, action: "ROLLBACK"}
-      }]
-    else [] end
+  | .lifecycleHooks = (
+      if $mode == "canary" then
+        [{
+          targetType: "PAUSE",
+          lifecycleStages: ["POST_TEST_TRAFFIC_SHIFT"],
+          timeoutConfiguration: {timeoutInMinutes: $timeout, action: "ROLLBACK"}
+        }]
+      else
+        []
+      end
+    )
   | if $alarms != "" then
-      .alarms = {alarmNames: ($alarms | split(",")), rollback: true, enable: true}
-    else . end')
+      .alarms = {alarmNames: ($alarms | split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))), rollback: true, enable: true}
+    else . end'\
+  > "$WORK/deployment-config.json"
+
+if ! jq -e 'type == "object" and .strategy == "LINEAR" and (.linearConfiguration | type == "object")' \
+  "$WORK/deployment-config.json" >/dev/null; then
+  echo "ERROR: DEPLOY_CONFIG no es un objeto JSON valido" >&2
+  cat "$WORK/deployment-config.json" >&2 || true
+  exit 1
+fi
+
+log "Configuracion ECS generada:"
+jq . "$WORK/deployment-config.json"
 log "Plan: pasos de ${STEP_PERCENT}% cada ${STEP_BAKE_MINUTES} min, ventana de rollback ${FINAL_BAKE_MINUTES} min"
 [ "$MODE" = "canary" ] && log "Etapa 0: pausa tras mover el trafico de prueba (timeout ${STAGE0_TIMEOUT_MINUTES} min -> ROLLBACK)"
 
@@ -192,7 +207,7 @@ fi
 
 # --- 4) Lanzar el despliegue ---
 aws ecs update-service --cluster "$CLUSTER_NAME" --service "$SERVICE_NAME" \
-  --task-definition "$NEW_TD" --deployment-configuration "$DEPLOY_CONFIG" >/dev/null
+  --task-definition "$NEW_TD" --deployment-configuration "file://$WORK/deployment-config.json" >/dev/null
 log "Despliegue solicitado"
 
 # No asumir que serviceDeployments[0] es nuestro despliegue.
