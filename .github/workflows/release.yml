@@ -25,7 +25,7 @@ on:
         required: true
         default: "15"
       alarm_names:
-        description: "Alarmas de CloudWatch (separadas por coma) que revierten el despliegue. Vacio = ninguna"
+        description: "Alarmas de CloudWatch (separadas por coma) que revierten el despliegue. Vacio = las alarmas del canary creadas por Terraform"
         required: false
         default: ""
       fault_error_rate:
@@ -117,7 +117,7 @@ jobs:
                       SUBNET_IDS:private_subnet_ids ECS_SG_ID:ecs_security_group_id \
                       EXEC_ROLE_ARN:ecs_execution_role_arn DB_SECRET_ARN:db_url_secret_arn \
                       DB_LOG_GROUP:db_init_log_group ALB_SG_ID:alb_security_group_id \
-                      TEST_PORT:test_listener_port; do
+                      TEST_PORT:test_listener_port CANARY_ALARMS:canary_alarm_names; do
             var="${pair%%:*}"; key="${pair##*:}"
             val="$(jq -r --arg k "$key" '.[$k].value // empty' "$RUNNER_TEMP/tf-outputs.json")"
             if [ -z "$val" ]; then
@@ -186,7 +186,7 @@ jobs:
           STEP_BAKE_MINUTES: ${{ inputs.step_bake_minutes }}
           FINAL_BAKE_MINUTES: ${{ inputs.final_bake_minutes }}
           STAGE0_TIMEOUT_MINUTES: ${{ inputs.stage0_timeout_minutes }}
-          ALARM_NAMES: ${{ inputs.alarm_names }}
+          ALARM_NAMES: ${{ inputs.alarm_names || env.CANARY_ALARMS }}
           FAULT_ERROR_RATE: ${{ inputs.fault_error_rate }}
           FAULT_LATENCY_MS: ${{ inputs.fault_latency_ms }}
           SAMPLER_URL: ${{ env.API_URL }}/version

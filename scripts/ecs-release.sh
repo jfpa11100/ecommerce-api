@@ -228,10 +228,6 @@ aws ecs update-service --cluster "$CLUSTER_NAME" --service "$SERVICE_NAME" \
   --task-definition "$NEW_TD" --deployment-configuration "file://$WORK/deployment-config.json" >/dev/null
 log "Despliegue solicitado"
 
-# No asumir que serviceDeployments[0] es nuestro despliegue.
-# targetServiceRevision solo contiene el ARN de la revision del servicio;
-# hay que resolver esa revision con describe-service-revisions para obtener
-# la Task Definition que realmente utiliza.
 for _ in $(seq 1 24); do
   CANDIDATE_ARNS=$(aws ecs list-service-deployments --cluster "$CLUSTER_NAME" --service "$SERVICE_NAME" \
     --status PENDING IN_PROGRESS --query 'serviceDeployments[].serviceDeploymentArn' --output text)
@@ -299,15 +295,21 @@ while :; do
   if [ "$MODE" = "canary" ] && [ "$GATE_DONE" -eq 0 ] && [ "$ROLLBACK_REQUESTED" -eq 0 ]; then
     HOOK=$(jq -r '[.lifecycleHookDetails[]? | select(.targetType=="PAUSE" and .status=="AWAITING_ACTION")][0].hookId // empty' <<<"$DESC")
     if [ -n "$HOOK" ]; then
-      log "ETAPA 0: despliegue en pausa (0% de trafico publico). Ejecutando smoke tests..."
-      if TEST_URL="$TEST_URL" EXPECTED_VERSION="$APP_VERSION" EXPECTED_TRACK="canary" bash "$SMOKE_SCRIPT"; then
-        log "Smoke tests OK -> CONTINUE (empieza el reparto de trafico real)"
+      if [ "$MODE" = "canary" ]; then
+        log "ETAPA 0: despliegue en pausa (0% de trafico publico). Ejecutando smoke tests..."
+        if TEST_URL="$TEST_URL" EXPECTED_VERSION="$APP_VERSION" EXPECTED_TRACK="canary" bash "$SMOKE_SCRIPT"; then
+          log "Smoke tests OK -> CONTINUE (empieza el reparto de trafico real)"
+          aws ecs continue-service-deployment --service-deployment-arn "$DEPLOY_ARN" --hook-id "$HOOK" --action CONTINUE >/dev/null
+          GATE_DONE=1
+        else
+          log "Smoke tests FALLARON -> ROLLBACK"
+          aws ecs continue-service-deployment --service-deployment-arn "$DEPLOY_ARN" --hook-id "$HOOK" --action ROLLBACK >/dev/null
+          ROLLBACK_REQUESTED=1
+        fi
+      else
+        log "Pausa heredada del plan anterior detectada en finalize (imagen ya validada) -> CONTINUE"
         aws ecs continue-service-deployment --service-deployment-arn "$DEPLOY_ARN" --hook-id "$HOOK" --action CONTINUE >/dev/null
         GATE_DONE=1
-      else
-        log "Smoke tests FALLARON -> ROLLBACK"
-        aws ecs continue-service-deployment --service-deployment-arn "$DEPLOY_ARN" --hook-id "$HOOK" --action ROLLBACK >/dev/null
-        ROLLBACK_REQUESTED=1
       fi
     fi
   fi
