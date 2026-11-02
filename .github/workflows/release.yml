@@ -20,14 +20,18 @@ on:
         description: "Minutos que se conserva la version anterior tras llegar al 100% (ventana de rollback)"
         required: true
         default: "5"
-      stage0_timeout_minutes:
-        description: "Minutos maximos de la Etapa 0 (pausa con 0% de trafico) antes de revertir"
-        required: true
-        default: "15"
       alarm_names:
-        description: "Alarmas de CloudWatch (separadas por coma) que revierten el despliegue. Vacio = las alarmas del canary creadas por Terraform"
+        description: "Alarmas de CloudWatch (separadas por coma) que revierten el despliegue. Vacio = las alarmas del canary creadas por Terraform. 'none' = ninguna (para probar solo el quality gate)"
         required: false
         default: ""
+      quality_gate:
+        description: "Quality gate por etapa (SLO en slo/canary-slo.yaml): promover, pausar o abortar"
+        type: boolean
+        default: true
+      load_rps:
+        description: "Carga concurrente durante el despliegue (peticiones por segundo, 5 a 200)"
+        required: true
+        default: "40"
       fault_error_rate:
         description: "SIMULAR REGRESION: fraccion (0 a 1) de peticiones /api que fallan con 500 SOLO en el canary. 0 = sin fallos"
         required: false
@@ -36,14 +40,11 @@ on:
         description: "SIMULAR REGRESION: milisegundos de latencia anadidos SOLO en el canary. 0 = sin retraso"
         required: false
         default: "0"
-      finalize_as_stable:
-        description: "Al terminar, relanzar la misma imagen con TRACK=stable"
-        type: boolean
-        default: true
-      only_finalize:
-        description: "SOLO marcar como stable la version que ya esta desplegada (no construye, no migra, no despliega)"
-        type: boolean
-        default: false
+      finalize:
+        description: "Marcar como stable al terminar: yes = despues del release, no = no hacerlo, only = SOLO marcar como stable lo ya desplegado (no construye, no migra, no despliega)"
+        type: choice
+        options: ["yes", "no", "only"]
+        default: "yes"
 
 permissions:
   id-token: write # OIDC
@@ -76,19 +77,20 @@ jobs:
           IN_STEP: ${{ inputs.step_percent }}
           IN_BAKE: ${{ inputs.step_bake_minutes }}
           IN_FINAL: ${{ inputs.final_bake_minutes }}
-          IN_STAGE0: ${{ inputs.stage0_timeout_minutes }}
+          IN_LOAD: ${{ inputs.load_rps }}
           IN_FERR: ${{ inputs.fault_error_rate }}
           IN_FLAT: ${{ inputs.fault_latency_ms }}
         run: |
           [[ "$IN_FERR" =~ ^(0(\.[0-9]+)?|1(\.0+)?)$ ]] || { echo "::error::fault_error_rate debe ser un decimal entre 0 y 1"; exit 1; }
           [[ "$IN_FLAT" =~ ^[0-9]{1,5}$ ]] && [ "$IN_FLAT" -le 10000 ] || { echo "::error::fault_latency_ms debe ser un entero entre 0 y 10000"; exit 1; }
           [[ "$IN_VERSION" =~ ^[A-Za-z0-9._-]{1,40}$ ]] || { echo "::error::app_version solo admite letras, numeros, punto, guion y guion bajo"; exit 1; }
-          for v in IN_STEP IN_BAKE IN_FINAL IN_STAGE0; do
+          for v in IN_STEP IN_BAKE IN_FINAL IN_LOAD; do
             [[ "${!v}" =~ ^[0-9]{1,3}$ ]] || { echo "::error::$v debe ser un numero entero"; exit 1; }
           done
           if [ "$IN_STEP" -lt 3 ] || [ "$IN_STEP" -gt 100 ]; then echo "::error::step_percent debe estar entre 3 y 100"; exit 1; fi
+          if [ "$IN_LOAD" -lt 5 ] || [ "$IN_LOAD" -gt 200 ]; then echo "::error::load_rps debe estar entre 5 y 200"; exit 1; fi
           STEPS=$(( (100 + IN_STEP - 1) / IN_STEP ))
-          MAX_WAIT=$(( STEPS * (IN_BAKE + 3) + IN_FINAL + IN_STAGE0 + 20 ))
+          MAX_WAIT=$(( STEPS * (IN_BAKE + 3) + IN_FINAL + 65 ))
           echo "RELEASE_VERSION=${IN_VERSION}-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
           echo "MAX_WAIT_MINUTES=$MAX_WAIT" >> "$GITHUB_ENV"
           echo "Release: ${IN_VERSION}-${GITHUB_SHA::7} | pasos: $STEPS | espera maxima: ${MAX_WAIT} min"
@@ -126,13 +128,18 @@ jobs:
             fi
             echo "$var=$val" >> "$GITHUB_ENV"
           done
+          CLUSTER="$(jq -r '.ecs_cluster_name.value' "$RUNNER_TEMP/tf-outputs.json")"
+          echo "APP_LOG_GROUP=/ecs/${CLUSTER%-cluster}" >> "$GITHUB_ENV"
           [ "$missing" -eq 0 ]
+
+      - name: Dependencias del quality gate (PyYAML)
+        run: python3 -c "import yaml" 2>/dev/null || pip install --quiet pyyaml
 
       - name: Login en ECR
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: 1) Imagen inmutable (reusar o construir)
-        if: ${{ !inputs.only_finalize }}
+        if: ${{ inputs.finalize != 'only' }}
         id: image
         run: |
           REPO_NAME="${ECR_REPO_URL#*/}"
@@ -153,7 +160,7 @@ jobs:
           echo "Imagen inmutable: $ECR_REPO_URL@$DIGEST"
 
       - name: 2) Migracion de base de datos (Expand)
-        if: ${{ !inputs.only_finalize }}
+        if: ${{ inputs.finalize != 'only' }}
         env:
           SECURITY_GROUP_ID: ${{ env.ECS_SG_ID }}
           EXECUTION_ROLE_ARN: ${{ env.EXEC_ROLE_ARN }}
@@ -164,7 +171,7 @@ jobs:
           bash scripts/db-migrate.sh
 
       - name: 3) Abrir el puerto de pruebas a este runner
-        if: ${{ !inputs.only_finalize }}
+        if: ${{ inputs.finalize != 'only' }}
         run: |
           RUNNER_IP="$(curl -fsS https://checkip.amazonaws.com | tr -d '[:space:]')"
           echo "RUNNER_IP=$RUNNER_IP" >> "$GITHUB_ENV"
@@ -177,7 +184,7 @@ jobs:
           fi
 
       - name: 4) Despliegue progresivo (Etapa 0 -> 1 -> 2 -> 3)
-        if: ${{ !inputs.only_finalize }}
+        if: ${{ inputs.finalize != 'only' }}
         env:
           MODE: canary
           IMAGE_URI: ${{ steps.image.outputs.image_uri }}
@@ -185,8 +192,14 @@ jobs:
           STEP_PERCENT: ${{ inputs.step_percent }}
           STEP_BAKE_MINUTES: ${{ inputs.step_bake_minutes }}
           FINAL_BAKE_MINUTES: ${{ inputs.final_bake_minutes }}
-          STAGE0_TIMEOUT_MINUTES: ${{ inputs.stage0_timeout_minutes }}
           ALARM_NAMES: ${{ inputs.alarm_names || env.CANARY_ALARMS }}
+          QUALITY_GATE: ${{ inputs.quality_gate && 'on' || 'off' }}
+          SLO_FILE: slo/canary-slo.yaml
+          GATE_LOG_GROUP: ${{ env.APP_LOG_GROUP }}
+          GATE_DECISIONS_OUT: ${{ runner.temp }}/gate-decisions.jsonl
+          LOAD_URL: ${{ env.API_URL }}
+          LOAD_RPS: ${{ inputs.load_rps }}
+          LOAD_OUT: ${{ runner.temp }}/load-summary.txt
           FAULT_ERROR_RATE: ${{ inputs.fault_error_rate }}
           FAULT_LATENCY_MS: ${{ inputs.fault_latency_ms }}
           SAMPLER_URL: ${{ env.API_URL }}/version
@@ -194,7 +207,7 @@ jobs:
         run: bash scripts/ecs-release.sh
 
       - name: 5) Marcar la version promovida como stable
-        if: ${{ inputs.finalize_as_stable || inputs.only_finalize }}
+        if: ${{ inputs.finalize != 'no' }}
         env:
           MODE: finalize
           SAMPLER_URL: ${{ env.API_URL }}/version
@@ -214,6 +227,15 @@ jobs:
         run: |
           {
             echo "## Release ${RELEASE_VERSION:-?}"
+            if [ -s "$RUNNER_TEMP/gate-decisions.jsonl" ]; then
+              echo "### Decisiones del quality gate (umbrales en slo/canary-slo.yaml)"
+              echo "| Hora (UTC) | Etapa | % trafico canary | Peticiones stable / canary | 5xx % stable / canary | p95 ms stable / canary | Decision |"
+              echo "|---|---|---|---|---|---|---|"
+              jq -r '"| \(.ts) | \(.stage) | \(.measured.canary_share_pct) | \(.measured.requests.stable) / \(.measured.requests.canary) | \(.measured.err5xx_pct.stable) / \(.measured.err5xx_pct.canary) | \(.measured.p95_ms.stable) / \(.measured.p95_ms.canary) | **\(.decision)** |"' "$RUNNER_TEMP/gate-decisions.jsonl"
+              echo
+              jq -r 'select(.decision=="ABORT") | "- **ABORTADO** (\(.stage)): " + (.abort_reasons | join("; "))' "$RUNNER_TEMP/gate-decisions.jsonl"
+            fi
+            [ -s "$RUNNER_TEMP/load-summary.txt" ] && { echo '```'; cat "$RUNNER_TEMP/load-summary.txt"; echo '```'; }
             for f in "$RUNNER_TEMP"/traffic-*.csv; do
               [ -s "$f" ] || continue
               echo "### $(basename "$f")"
@@ -228,5 +250,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: evidencia-trafico-${{ github.run_id }}
-          path: ${{ runner.temp }}/traffic-*.csv
+          path: |
+            ${{ runner.temp }}/traffic-*.csv
+            ${{ runner.temp }}/gate-decisions.jsonl
+            ${{ runner.temp }}/load-summary.txt
           if-no-files-found: ignore

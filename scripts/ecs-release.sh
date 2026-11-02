@@ -2,8 +2,13 @@
 # Despliegue progresivo (LINEAL) con ECS nativo.
 #
 #   MODE=canary    -> registra una task definition nueva (imagen nueva, TRACK=canary),
-#                     lanza el despliegue con una PAUSA en la Etapa 0, corre los smoke
-#                     tests contra el listener de pruebas y continua o revierte.
+#                     lanza el despliegue con PAUSAS controladas por este script:
+#                       pausa 0   = Etapa 0 (0% de trafico publico): smoke tests por el
+#                                   listener de pruebas -> continuar o revertir
+#                       pausas 1+ = QUALITY GATE antes de cada paso de trafico real
+#                                   (scripts/slo_gate.py): promover, pausar o abortar
+#                     Mientras tanto genera carga concurrente para que cada etapa tenga
+#                     muestras suficientes de stable y de canary.
 #   MODE=finalize  -> relanza la MISMA imagen con TRACK=stable (un solo paso de 100%)
 #                     para que las respuestas pasen a decir "stable" tras la promocion.
 set -euo pipefail
@@ -17,6 +22,18 @@ STEP_BAKE_MINUTES="${STEP_BAKE_MINUTES:-2}"
 FINAL_BAKE_MINUTES="${FINAL_BAKE_MINUTES:-5}"
 STAGE0_TIMEOUT_MINUTES="${STAGE0_TIMEOUT_MINUTES:-15}"
 ALARM_NAMES="${ALARM_NAMES:-}"
+[ "$ALARM_NAMES" = "none" ] && ALARM_NAMES=""   # "none" = sin alarmas (para probar solo el quality gate)
+QUALITY_GATE="${QUALITY_GATE:-on}"              # on | off
+SLO_FILE="${SLO_FILE:-}"
+GATE_LOG_GROUP="${GATE_LOG_GROUP:-}"
+GATE_DECISIONS_OUT="${GATE_DECISIONS_OUT:-}"
+GATE_SCRIPT="${GATE_SCRIPT:-$(dirname "$0")/slo_gate.py}"
+REGION="${AWS_REGION:-${AWS_DEFAULT_REGION:-us-east-2}}"
+LOAD_URL="${LOAD_URL:-}"                        # URL base de la API para la carga (vacio = sin carga)
+LOAD_RPS="${LOAD_RPS:-40}"
+LOAD_CONCURRENCY="${LOAD_CONCURRENCY:-10}"
+LOAD_OUT="${LOAD_OUT:-load-summary.txt}"
+HOOK_RELEASE_WAIT="${HOOK_RELEASE_WAIT:-5}"
 FAULT_ERROR_RATE="${FAULT_ERROR_RATE:-0}"   # 0..1   -> % de peticiones /api con 500 (solo canary)
 FAULT_LATENCY_MS="${FAULT_LATENCY_MS:-0}"   # ms     -> latencia anadida (solo canary)
 MAX_WAIT_MINUTES="${MAX_WAIT_MINUTES:-80}"
@@ -30,6 +47,8 @@ FINISHED=0
 SAMPLER_PID=""
 NEW_TD=""
 DESC=""
+LOAD_PID=""
+GATE_ON=0
 
 log() { echo "[$(date -u +%H:%M:%S)] $*"; }
 
@@ -107,6 +126,11 @@ if [ "$MODE" = "canary" ]; then
   : "${APP_VERSION:?Falta APP_VERSION}"
   : "${TEST_URL:?Falta TEST_URL}"
   TRACK="canary"
+  if [ "$QUALITY_GATE" = "on" ]; then
+    [ -f "$SLO_FILE" ] || { echo "ERROR: QUALITY_GATE=on pero no existe SLO_FILE ('$SLO_FILE')" >&2; exit 2; }
+    [ -n "$GATE_LOG_GROUP" ] || { echo "ERROR: QUALITY_GATE=on requiere GATE_LOG_GROUP" >&2; exit 2; }
+    GATE_ON=1
+  fi
 elif [ "$MODE" = "finalize" ]; then
   TRACK="stable"
   STEP_PERCENT=100; STEP_BAKE_MINUTES=1; FINAL_BAKE_MINUTES=0
@@ -116,6 +140,10 @@ fi
 
 cleanup() {
   rc=$?
+  if [ -n "$LOAD_PID" ]; then
+    kill "$LOAD_PID" 2>/dev/null || true
+    wait "$LOAD_PID" 2>/dev/null || true   # el generador imprime su resumen al terminar
+  fi
   if [ -n "$SAMPLER_PID" ]; then
     kill "$SAMPLER_PID" 2>/dev/null || true
     wait "$SAMPLER_PID" 2>/dev/null || true
@@ -181,9 +209,19 @@ if [ "$MODE" = "canary" ] && { [ "$FAULT_ERROR_RATE" != "0" ] || [ "$FAULT_LATEN
 fi
 
 # --- 2) Plan de despliegue (se sobrescribe en cada release) ---
-jq -n \
+# Pausas (hooks PAUSE) en el canary:
+#   POST_TEST_TRAFFIC_SHIFT         -> Etapa 0
+#   PRE_PRODUCTION_TRAFFIC_SHIFT    -> antes de CADA paso de trafico real (quality gate)
+#   POST_PRODUCTION_TRAFFIC_SHIFT   -> con el 100% movido, antes de cerrar (gate final)
+if [ "$GATE_ON" -eq 1 ]; then
+  HOOK_STAGES='["POST_TEST_TRAFFIC_SHIFT","PRE_PRODUCTION_TRAFFIC_SHIFT","POST_PRODUCTION_TRAFFIC_SHIFT"]'
+else
+  HOOK_STAGES='["POST_TEST_TRAFFIC_SHIFT"]'
+fi
+DEPLOY_CONFIG=$(jq -n \
   --argjson step "$STEP_PERCENT" --argjson stepbake "$STEP_BAKE_MINUTES" \
   --argjson bake "$FINAL_BAKE_MINUTES" --argjson timeout "$STAGE0_TIMEOUT_MINUTES" \
+  --argjson stages "$HOOK_STAGES" \
   --arg alarms "$ALARM_NAMES" --arg mode "$MODE" '
   {strategy: "LINEAR",
    bakeTimeInMinutes: $bake,
@@ -214,13 +252,32 @@ fi
 log "Configuracion ECS generada:"
 jq . "$WORK/deployment-config.json"
 log "Plan: pasos de ${STEP_PERCENT}% cada ${STEP_BAKE_MINUTES} min, ventana de rollback ${FINAL_BAKE_MINUTES} min"
-[ "$MODE" = "canary" ] && log "Etapa 0: pausa tras mover el trafico de prueba (timeout ${STAGE0_TIMEOUT_MINUTES} min -> ROLLBACK)"
+if [ "$MODE" = "canary" ]; then
+  log "Etapa 0: pausa tras mover el trafico de prueba (maximo ${STAGE0_TIMEOUT_MINUTES} min por pausa -> ROLLBACK)"
+  if [ "$GATE_ON" -eq 1 ]; then
+    log "Quality gate ACTIVO: umbrales en $SLO_FILE; decision en cada etapa (promover / pausar / abortar)"
+  else
+    log "Quality gate DESACTIVADO: solo se valida la Etapa 0"
+  fi
+  if [ -n "$ALARM_NAMES" ]; then
+    log "Alarmas que revierten el despliegue (rollback automatico): $ALARM_NAMES"
+  else
+    log "Sin alarmas de CloudWatch conectadas al despliegue"
+  fi
+fi
 
 # --- 3) Evidencia en vivo: que version/track responde mientras despliega ---
 if [ -n "$SAMPLER_URL" ]; then
   bash "$(dirname "$0")/traffic-sampler.sh" "$SAMPLER_URL" "$SAMPLER_OUT" 1 &
   SAMPLER_PID=$!
   log "Muestreando $SAMPLER_URL cada 1 s -> $SAMPLER_OUT"
+fi
+
+# --- 3b) Carga concurrente: estadisticamente representativa en cada etapa ---
+if [ "$MODE" = "canary" ] && [ -n "$LOAD_URL" ]; then
+  bash "$(dirname "$0")/load-generator.sh" "$LOAD_URL" "$LOAD_RPS" "$LOAD_CONCURRENCY" "$LOAD_OUT" &
+  LOAD_PID=$!
+  log "Carga concurrente iniciada: ~${LOAD_RPS} peticiones/s, ${LOAD_CONCURRENCY} en paralelo, sobre $LOAD_URL"
 fi
 
 # --- 4) Lanzar el despliegue ---
@@ -260,9 +317,27 @@ done
 }
 log "Despliegue: $DEPLOY_ARN"
 
-# --- 5) Vigilar el despliegue; en canary, resolver la Etapa 0 ---
+# --- 5) Vigilar el despliegue y atender cada pausa ---
+continue_hook() { # $1 = CONTINUE | ROLLBACK
+  aws ecs continue-service-deployment --service-deployment-arn "$DEPLOY_ARN" --hook-id "$HOOK" --action "$1" >/dev/null
+  [ "$1" = "ROLLBACK" ] && ROLLBACK_REQUESTED=1
+  return 0
+}
+
+# Tras actuar, esperar a que ECS libere la pausa antes de seguir (evita atenderla dos veces)
+wait_hook_released() {
+  local i d still
+  for i in $(seq 1 24); do
+    d=$(aws ecs describe-service-deployments --service-deployment-arns "$DEPLOY_ARN" --query 'serviceDeployments[0]' --output json)
+    still=$(jq -r --arg h "$HOOK" '[.lifecycleHookDetails[]? | select(.hookId==$h and .status=="AWAITING_ACTION")] | length' <<<"$d")
+    [ "$still" = "0" ] && return 0
+    sleep "$HOOK_RELEASE_WAIT"
+  done
+  log "AVISO: la pausa $HOOK sigue pendiente despues de la accion"
+}
+
 DEADLINE=$(( $(date +%s) + MAX_WAIT_MINUTES * 60 ))
-GATE_DONE=0
+PAUSE_N=0
 ROLLBACK_REQUESTED=0
 LAST=""
 while :; do
@@ -279,10 +354,7 @@ while :; do
 
   case "$STATUS" in
     SUCCESSFUL)
-      FINISHED=1
-      log "Despliegue COMPLETADO"
-      break
-      ;;
+      FINISHED=1; log "Despliegue COMPLETADO (100% en la revision nueva)"; break ;;
     STOPPED|ROLLBACK_SUCCESSFUL|ROLLBACK_FAILED)
       FINISHED=1
       echo "ERROR: despliegue terminado en estado $STATUS" >&2
@@ -292,25 +364,42 @@ while :; do
       ;;
   esac
 
-  if [ "$MODE" = "canary" ] && [ "$GATE_DONE" -eq 0 ] && [ "$ROLLBACK_REQUESTED" -eq 0 ]; then
+  # El detalle de una pausa NO indica en que etapa esta: se atienden en orden.
+  if [ "$ROLLBACK_REQUESTED" -eq 0 ]; then
     HOOK=$(jq -r '[.lifecycleHookDetails[]? | select(.targetType=="PAUSE" and .status=="AWAITING_ACTION")][0].hookId // empty' <<<"$DESC")
     if [ -n "$HOOK" ]; then
-      if [ "$MODE" = "canary" ]; then
+      if [ "$MODE" != "canary" ]; then
+        # finalize: la imagen ya fue validada; si ECS conserva pausas del plan anterior, continuar
+        log "Pausa heredada del plan anterior detectada en finalize (imagen ya validada) -> CONTINUE"
+        continue_hook CONTINUE
+      elif [ "$PAUSE_N" -eq 0 ]; then
         log "ETAPA 0: despliegue en pausa (0% de trafico publico). Ejecutando smoke tests..."
         if TEST_URL="$TEST_URL" EXPECTED_VERSION="$APP_VERSION" EXPECTED_TRACK="canary" bash "$SMOKE_SCRIPT"; then
           log "Smoke tests OK -> CONTINUE (empieza el reparto de trafico real)"
-          aws ecs continue-service-deployment --service-deployment-arn "$DEPLOY_ARN" --hook-id "$HOOK" --action CONTINUE >/dev/null
-          GATE_DONE=1
+          continue_hook CONTINUE
         else
           log "Smoke tests FALLARON -> ROLLBACK"
-          aws ecs continue-service-deployment --service-deployment-arn "$DEPLOY_ARN" --hook-id "$HOOK" --action ROLLBACK >/dev/null
-          ROLLBACK_REQUESTED=1
+          continue_hook ROLLBACK
+        fi
+      elif [ "$GATE_ON" -eq 1 ]; then
+        log "PAUSA $PAUSE_N: ejecutando el quality gate..."
+        GATE_FLAGS=()
+        [ "$PAUSE_N" -eq 1 ] && GATE_FLAGS+=(--allow-no-traffic)
+        GATE_RC=0
+        python3 "$GATE_SCRIPT" --slo "$SLO_FILE" --log-group "$GATE_LOG_GROUP" --region "$REGION" \
+          --label "pausa $PAUSE_N" --decisions-file "$GATE_DECISIONS_OUT" ${GATE_FLAGS[@]+"${GATE_FLAGS[@]}"} || GATE_RC=$?
+        if [ "$GATE_RC" -eq 0 ]; then
+          log "Quality gate: PROMOVER -> CONTINUE (siguiente etapa)"
+          continue_hook CONTINUE
+        else
+          log "Quality gate: ABORTAR (codigo $GATE_RC) -> ROLLBACK inmediato: 0% canary / 100% stable"
+          continue_hook ROLLBACK
         fi
       else
-        log "Pausa heredada del plan anterior detectada en finalize (imagen ya validada) -> CONTINUE"
-        aws ecs continue-service-deployment --service-deployment-arn "$DEPLOY_ARN" --hook-id "$HOOK" --action CONTINUE >/dev/null
-        GATE_DONE=1
+        continue_hook CONTINUE
       fi
+      PAUSE_N=$((PAUSE_N + 1))
+      wait_hook_released
     fi
   fi
 
