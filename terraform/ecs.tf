@@ -88,6 +88,17 @@ resource "aws_ecs_service" "app" {
       step_percent              = var.linear_step_percent
       step_bake_time_in_minutes = var.linear_step_bake_time_minutes
     }
+
+    # Alarmas que supervisan el canary y permiten revertir el despliegue.
+    # Los nombres se toman de los recursos definidos en cloudwatch.tf.
+    alarms {
+      alarm_names = [
+        aws_cloudwatch_metric_alarm.canary_error_rate.alarm_name,
+        aws_cloudwatch_metric_alarm.canary_latency_p95.alarm_name
+      ]
+      enable   = true
+      rollback = true
+    }
   }
 
   network_configuration {
