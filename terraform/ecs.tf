@@ -110,9 +110,13 @@ resource "aws_ecs_service" "app" {
     }
   }
 
-  # El pipeline de release cambia la task definition y el plan de despliegue.
+  # El pipeline de release cambia la task definition, el plan de despliegue
+  # (deployment_configuration) y las alarmas que revierten el despliegue (alarms).
+  # Terraform no debe intentar "corregirlos": con alarms ausente de la configuracion,
+  # intentaria quitarlas y el provider envia una actualizacion sin AlarmNames,
+  # que la API de ECS rechaza.
   lifecycle {
-    ignore_changes = [task_definition, deployment_configuration]
+    ignore_changes = [task_definition, deployment_configuration, alarms]
   }
 
   depends_on = [
