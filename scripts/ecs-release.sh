@@ -226,31 +226,16 @@ DEPLOY_CONFIG=$(jq -n \
   {strategy: "LINEAR",
    bakeTimeInMinutes: $bake,
    linearConfiguration: {stepPercent: $step, stepBakeTimeInMinutes: $stepbake}}
-  | .lifecycleHooks = (
-      if $mode == "canary" then
-        [{
-          targetType: "PAUSE",
-          lifecycleStages: ["POST_TEST_TRAFFIC_SHIFT"],
-          timeoutConfiguration: {timeoutInMinutes: $timeout, action: "ROLLBACK"}
-        }]
-      else
-        []
-      end
-    )
-  | if $alarms != "" then
-      .alarms = {alarmNames: ($alarms | split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))), rollback: true, enable: true}
-    else . end'\
-  > "$WORK/deployment-config.json"
-
-if ! jq -e 'type == "object" and .strategy == "LINEAR" and (.linearConfiguration | type == "object")' \
-  "$WORK/deployment-config.json" >/dev/null; then
-  echo "ERROR: DEPLOY_CONFIG no es un objeto JSON valido" >&2
-  cat "$WORK/deployment-config.json" >&2 || true
-  exit 1
-fi
-
-log "Configuracion ECS generada:"
-jq . "$WORK/deployment-config.json"
+  | if $mode == "canary" then
+      .lifecycleHooks = [{
+        targetType: "PAUSE",
+        lifecycleStages: $stages,
+        timeoutConfiguration: {timeoutInMinutes: $timeout, action: "ROLLBACK"}
+      }]
+    else . end
+  | if $alarms != "" and $mode == "canary" then
+      .alarms = {alarmNames: ($alarms | split(",")), rollback: true, enable: true}
+    else . end')
 log "Plan: pasos de ${STEP_PERCENT}% cada ${STEP_BAKE_MINUTES} min, ventana de rollback ${FINAL_BAKE_MINUTES} min"
 if [ "$MODE" = "canary" ]; then
   log "Etapa 0: pausa tras mover el trafico de prueba (maximo ${STAGE0_TIMEOUT_MINUTES} min por pausa -> ROLLBACK)"
@@ -282,33 +267,14 @@ fi
 
 # --- 4) Lanzar el despliegue ---
 aws ecs update-service --cluster "$CLUSTER_NAME" --service "$SERVICE_NAME" \
-  --task-definition "$NEW_TD" --deployment-configuration "file://$WORK/deployment-config.json" >/dev/null
+  --task-definition "$NEW_TD" --deployment-configuration "$DEPLOY_CONFIG" >/dev/null
 log "Despliegue solicitado"
 
 for _ in $(seq 1 24); do
-  CANDIDATE_ARNS=$(aws ecs list-service-deployments --cluster "$CLUSTER_NAME" --service "$SERVICE_NAME" \
-    --status PENDING IN_PROGRESS --query 'serviceDeployments[].serviceDeploymentArn' --output text)
-
-  for CANDIDATE_ARN in $CANDIDATE_ARNS; do
-    CANDIDATE_DESC=$(aws ecs describe-service-deployments \
-      --service-deployment-arns "$CANDIDATE_ARN" \
-      --query 'serviceDeployments[0]' --output json)
-
-    CANDIDATE_REVISION_ARN=$(jq -r '.targetServiceRevision.arn // empty' <<<"$CANDIDATE_DESC")
-    [ -n "$CANDIDATE_REVISION_ARN" ] || continue
-
-    CANDIDATE_TD=$(aws ecs describe-service-revisions \
-      --service-revision-arns "$CANDIDATE_REVISION_ARN" \
-      --query 'serviceRevisions[0].taskDefinition' \
-      --output text 2>/dev/null || true)
-
-    if [ "$CANDIDATE_TD" = "$NEW_TD" ]; then
-      DEPLOY_ARN="$CANDIDATE_ARN"
-      break 2
-    fi
-  done
-
-  sleep 5
+  DEPLOY_ARN=$(aws ecs list-service-deployments --cluster "$CLUSTER_NAME" --service "$SERVICE_NAME" \
+    --status PENDING IN_PROGRESS --query 'serviceDeployments[0].serviceDeploymentArn' --output text)
+  [ -n "$DEPLOY_ARN" ] && [ "$DEPLOY_ARN" != "None" ] && break
+  DEPLOY_ARN=""; sleep 5
 done
 [ -n "$DEPLOY_ARN" ] || {
   echo "ERROR: no se encontro un despliegue cuyo targetServiceRevision use $NEW_TD" >&2
