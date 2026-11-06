@@ -193,6 +193,7 @@ jobs:
           STEP_BAKE_MINUTES: ${{ inputs.step_bake_minutes }}
           FINAL_BAKE_MINUTES: ${{ inputs.final_bake_minutes }}
           ALARM_NAMES: ${{ inputs.alarm_names || env.CANARY_ALARMS }}
+          ALARM_CATALOG: ${{ env.CANARY_ALARMS }}
           QUALITY_GATE: ${{ inputs.quality_gate && 'on' || 'off' }}
           SLO_FILE: slo/canary-slo.yaml
           GATE_LOG_GROUP: ${{ env.APP_LOG_GROUP }}
@@ -210,6 +211,7 @@ jobs:
         if: ${{ inputs.finalize != 'no' }}
         env:
           MODE: finalize
+          ALARM_CATALOG: ${{ env.CANARY_ALARMS }}
           SAMPLER_URL: ${{ env.API_URL }}/version
           SAMPLER_OUT: ${{ runner.temp }}/traffic-2-finalize.csv
         run: bash scripts/ecs-release.sh

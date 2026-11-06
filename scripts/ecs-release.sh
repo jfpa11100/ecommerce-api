@@ -23,6 +23,9 @@ FINAL_BAKE_MINUTES="${FINAL_BAKE_MINUTES:-5}"
 STAGE0_TIMEOUT_MINUTES="${STAGE0_TIMEOUT_MINUTES:-15}"
 ALARM_NAMES="${ALARM_NAMES:-}"
 [ "$ALARM_NAMES" = "none" ] && ALARM_NAMES=""   # "none" = sin alarmas (para probar solo el quality gate)
+# Catalogo de alarmas existentes: si ALARM_NAMES va vacio se DESACTIVAN explicitamente (enable=false),
+# porque ECS conserva la configuracion de alarmas del despliegue anterior si no se le dice nada.
+ALARM_CATALOG="${ALARM_CATALOG:-}"
 QUALITY_GATE="${QUALITY_GATE:-on}"              # on | off
 SLO_FILE="${SLO_FILE:-}"
 GATE_LOG_GROUP="${GATE_LOG_GROUP:-}"
@@ -222,7 +225,7 @@ DEPLOY_CONFIG=$(jq -n \
   --argjson step "$STEP_PERCENT" --argjson stepbake "$STEP_BAKE_MINUTES" \
   --argjson bake "$FINAL_BAKE_MINUTES" --argjson timeout "$STAGE0_TIMEOUT_MINUTES" \
   --argjson stages "$HOOK_STAGES" \
-  --arg alarms "$ALARM_NAMES" --arg mode "$MODE" '
+  --arg alarms "$ALARM_NAMES" --arg catalog "$ALARM_CATALOG" --arg mode "$MODE" '
   {strategy: "LINEAR",
    bakeTimeInMinutes: $bake,
    linearConfiguration: {stepPercent: $step, stepBakeTimeInMinutes: $stepbake}}
@@ -235,6 +238,8 @@ DEPLOY_CONFIG=$(jq -n \
     else . end
   | if $alarms != "" and $mode == "canary" then
       .alarms = {alarmNames: ($alarms | split(",")), rollback: true, enable: true}
+    elif $catalog != "" then
+      .alarms = {alarmNames: ($catalog | split(",")), rollback: false, enable: false}
     else . end')
 log "Plan: pasos de ${STEP_PERCENT}% cada ${STEP_BAKE_MINUTES} min, ventana de rollback ${FINAL_BAKE_MINUTES} min"
 if [ "$MODE" = "canary" ]; then
@@ -246,6 +251,8 @@ if [ "$MODE" = "canary" ]; then
   fi
   if [ -n "$ALARM_NAMES" ]; then
     log "Alarmas que revierten el despliegue (rollback automatico): $ALARM_NAMES"
+  elif [ -n "$ALARM_CATALOG" ]; then
+    log "Alarmas DESACTIVADAS para este despliegue (enable=false): $ALARM_CATALOG"
   else
     log "Sin alarmas de CloudWatch conectadas al despliegue"
   fi
@@ -323,11 +330,10 @@ while :; do
       FINISHED=1; log "Despliegue COMPLETADO (100% en la revision nueva)"; break ;;
     STOPPED|ROLLBACK_SUCCESSFUL|ROLLBACK_FAILED)
       FINISHED=1
-      echo "ERROR: despliegue terminado en estado $STATUS" >&2
-      echo "Motivo ECS: $REASON" >&2
-      print_failure_diagnostics "Despliegue finalizado con error: $STATUS"
-      exit 1
-      ;;
+      echo "ERROR: el despliegue termino en estado $STATUS" >&2
+      echo "Detalle del despliegue (para diagnostico):" >&2
+      jq -c . <<<"$DESC" >&2 || echo "$DESC" >&2
+      exit 1 ;;
   esac
 
   # El detalle de una pausa NO indica en que etapa esta: se atienden en orden.
