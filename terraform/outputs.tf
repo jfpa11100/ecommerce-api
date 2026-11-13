@@ -28,3 +28,7 @@ output "ecs_service_name" {
 output "chaos_alarm_name" {
   value = aws_cloudwatch_metric_alarm.chaos_abort.alarm_name
 }
+
+output "chaos_token_secret_id" {
+  value = aws_secretsmanager_secret.chaos_token.id
+}

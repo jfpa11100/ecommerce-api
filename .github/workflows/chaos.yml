@@ -41,6 +41,7 @@ jobs:
 
       - name: Terraform init y outputs
         run: |
+          set -euo pipefail
           terraform -chdir=$TF_DIR init -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
           echo "BASE_URL=$(terraform -chdir=$TF_DIR output -raw api_url)" >> $GITHUB_ENV
           echo "ECS_CLUSTER=$(terraform -chdir=$TF_DIR output -raw ecs_cluster_name)" >> $GITHUB_ENV
