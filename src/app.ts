@@ -4,6 +4,7 @@ import { errorHandler } from './middlewares/error-handler.ts';
 import { versionHeaders, APP_VERSION, APP_TRACK, INSTANCE_ID } from './middlewares/version-headers.ts';
 import v1Router from './api/routes/v1/index.ts';
 import v2Router from './api/routes/v2/index.ts';
+import { faultInjection } from './middlewares/fault.ts';
 
 const PORT = process.env.PORT || 3000;
 const startedAt = new Date().toISOString();
@@ -11,6 +12,7 @@ const startedAt = new Date().toISOString();
 const app: Express = express();
 
 app.use(versionHeaders)
+app.use(faultInjection);
 app.use(express.json())
 
 
