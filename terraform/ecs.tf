@@ -36,12 +36,14 @@ resource "aws_ecs_task_definition" "app" {
 
     environment = [
       { name = "NODE_ENV", value = "production" },
-      { name = "PORT", value = tostring(var.container_port) }
+      { name = "PORT", value = tostring(var.container_port) },
+      { name = "CHAOS_ENABLED", value = tostring(var.chaos_enabled) }
     ]
 
     # ECS reads secret and exposes it as environment variable DATABASE_URL
     secrets = [
-      { name = "DATABASE_URL", valueFrom = aws_secretsmanager_secret.db_url.arn }
+      { name = "DATABASE_URL", valueFrom = aws_secretsmanager_secret.db_url.arn },
+      { name = "CHAOS_TOKEN", valueFrom = aws_secretsmanager_secret.chaos_token.arn }
     ]
 
     logConfiguration = {

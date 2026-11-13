@@ -109,3 +109,8 @@ variable "db_init_log_retention_days" {
   type        = number
   default     = 1
 }
+
+variable "chaos_enabled" {
+  type    = bool
+  default = false
+}
