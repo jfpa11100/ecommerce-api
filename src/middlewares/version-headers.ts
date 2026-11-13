@@ -9,7 +9,7 @@ export const INSTANCE_ID = process.env.HOSTNAME ?? os.hostname()
 
 export function versionHeaders(_req: Request, res: Response, next: NextFunction) {
   res.setHeader('X-App-Version', APP_VERSION)
-  res.setHeader('X-App-Track', APP_TRACK + " - AWS")
+  res.setHeader('X-App-Name', "pipe")
   res.setHeader('X-App-Instance', INSTANCE_ID)
   next()
 }
