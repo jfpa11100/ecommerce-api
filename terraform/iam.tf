@@ -38,6 +38,20 @@ resource "aws_iam_role_policy" "ecs_execution_secrets" {
   policy = data.aws_iam_policy_document.read_db_secret.json
 }
 
+resource "aws_iam_role_policy" "ecs_execution_chaos_secret" {
+  name = "chaos-token-secret"
+  role = aws_iam_role.ecs_execution.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["secretsmanager:GetSecretValue"]
+      Resource = [aws_secretsmanager_secret.chaos_token.arn]
+    }]
+  })
+}
+
 # Task Role
 resource "aws_iam_role" "ecs_task" {
   name               = "${var.project_name}-${var.environment}-ecs-task"
