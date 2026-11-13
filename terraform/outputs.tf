@@ -21,6 +21,10 @@ output "db_init_log_group" {
   value = aws_cloudwatch_log_group.db_init.name
 }
 
-output "fis_stop_tasks_template_id" {
-  value = aws_fis_experiment_template.stop_tasks.id
+output "ecs_service_name" {
+  value = aws_ecs_service.app.name
+}
+
+output "chaos_alarm_name" {
+  value = aws_cloudwatch_metric_alarm.chaos_abort.alarm_name
 }

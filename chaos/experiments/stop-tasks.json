@@ -1,0 +1,77 @@
+{
+  "version": "1.0.0",
+  "title": "La API tolera la caída del 50% de sus tareas",
+  "description": "Hipótesis: si se detiene la mitad de las tareas ECS, la API sigue respondiendo y el servicio se recupera sin disparar la alarma de aborto.",
+  "tags": ["ecs", "tolerancia-a-fallos"],
+  "configuration": {
+    "base_url": { "type": "env", "key": "BASE_URL" }
+  },
+  "steady-state-hypothesis": {
+    "title": "La API está sana",
+    "probes": [
+      {
+        "type": "probe",
+        "name": "health-responde-200",
+        "tolerance": 200,
+        "provider": {
+          "type": "http",
+          "url": "${base_url}/health",
+          "timeout": 5
+        }
+      },
+      {
+        "type": "probe",
+        "name": "todas-las-tareas-corriendo",
+        "tolerance": 0,
+        "provider": {
+          "type": "process",
+          "path": "bash",
+          "arguments": "chaos/scripts/check-running.sh"
+        }
+      },
+      {
+        "type": "probe",
+        "name": "alarma-de-aborto-en-OK",
+        "tolerance": 0,
+        "provider": {
+          "type": "process",
+          "path": "bash",
+          "arguments": "chaos/scripts/check-alarm.sh"
+        }
+      }
+    ]
+  },
+  "method": [
+    {
+      "type": "action",
+      "name": "detener-50-por-ciento-de-tareas",
+      "provider": {
+        "type": "process",
+        "path": "bash",
+        "arguments": "chaos/scripts/stop-tasks.sh 50"
+      },
+      "pauses": { "after": 30 }
+    },
+    {
+      "type": "probe",
+      "name": "health-durante-el-fallo",
+      "provider": {
+        "type": "http",
+        "url": "${base_url}/health",
+        "timeout": 5
+      },
+      "pauses": { "after": 60 }
+    }
+  ],
+  "rollbacks": [
+    {
+      "type": "action",
+      "name": "esperar-a-que-ECS-recupere-el-servicio",
+      "provider": {
+        "type": "process",
+        "path": "bash",
+        "arguments": "chaos/scripts/wait-stable.sh"
+      }
+    }
+  ]
+}
