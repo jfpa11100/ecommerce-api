@@ -19,6 +19,7 @@ env:
   TF_INPUT: "false"
   TF_DIR: terraform
   BUILD_CONTEXT: .
+  TF_VAR_chaos_enabled: ${{ vars.CHAOS_ENABLED || 'false' }}
 
 jobs:
   deploy:
