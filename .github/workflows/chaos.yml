@@ -1,0 +1,92 @@
+name: Chaos experiment
+
+on:
+  workflow_dispatch:
+    inputs:
+      experiment:
+        description: "stop-tasks | error-injection | latency-injection"
+        required: true
+        default: "stop-tasks"
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-prod        # no correr en paralelo con un despliegue
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-2
+  TF_DIR: terraform
+
+jobs:
+  chaos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: chaos       # configura aprobación manual en GitHub
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~> 1.10"
+          terraform_wrapper: false
+
+      - name: Terraform init y outputs
+        run: |
+          terraform -chdir=$TF_DIR init -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+          echo "API_URL=$(terraform -chdir=$TF_DIR output -raw api_url)" >> $GITHUB_ENV
+          echo "TEMPLATE_ID=$(terraform -chdir=$TF_DIR output -raw fis_stop_tasks_template_id)" >> $GITHUB_ENV
+
+      - name: Obtener token de caos
+        run: |
+          TOKEN=$(aws secretsmanager get-secret-value \
+            --secret-id "$(terraform -chdir=$TF_DIR output -raw chaos_token_secret_id)" \
+            --query SecretString --output text)
+          echo "::add-mask::$TOKEN"
+          echo "CHAOS_TOKEN=$TOKEN" >> $GITHUB_ENV
+
+      - uses: grafana/setup-k6-action@v1
+        with:
+          k6-version: "0.54.0"
+
+      - name: Lanzar k6 en segundo plano
+        run: |
+          mkdir -p results
+          k6 run chaos/k6/load.js \
+            -e BASE_URL=$API_URL \
+            --summary-export results/summary.json > results/k6.log 2>&1 &
+          echo $! > k6.pid
+
+      - name: Baseline (2 min)
+        run: sleep 120
+
+      - name: Iniciar experimento FIS
+        if: inputs.experiment == 'stop-tasks'
+        run: |
+          EXP_ID=$(aws fis start-experiment \
+            --experiment-template-id $TEMPLATE_ID \
+            --query 'experiment.id' --output text)
+          echo "EXP_ID=$EXP_ID" >> $GITHUB_ENV
+          for i in $(seq 1 30); do
+            STATE=$(aws fis get-experiment --id $EXP_ID --query 'experiment.state.status' --output text)
+            echo "FIS: $STATE"
+            case "$STATE" in completed|stopped|failed) break;; esac
+            sleep 10
+          done
+
+      - name: Esperar fin de k6
+        run: wait $(cat k6.pid) || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chaos-results
+          path: results/
