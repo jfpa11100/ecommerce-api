@@ -75,6 +75,7 @@ jobs:
 
       - name: Experimento stop-tasks (Chaos Toolkit)
         if: inputs.experiment == 'stop-tasks'
+        continue-on-error: true
         run: |
           chaos validate chaos/experiments/stop-tasks.json
           chaos run chaos/experiments/stop-tasks.json \

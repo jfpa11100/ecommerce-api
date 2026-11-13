@@ -2,9 +2,15 @@
   "version": "1.0.0",
   "title": "La API tolera la caída del 50% de sus tareas",
   "description": "Hipótesis: si se detiene la mitad de las tareas ECS, la API sigue respondiendo y el servicio se recupera sin disparar la alarma de aborto.",
-  "tags": ["ecs", "tolerancia-a-fallos"],
+  "tags": [
+    "ecs",
+    "tolerancia-a-fallos"
+  ],
   "configuration": {
-    "base_url": { "type": "env", "key": "BASE_URL" }
+    "base_url": {
+      "type": "env",
+      "key": "BASE_URL"
+    }
   },
   "steady-state-hypothesis": {
     "title": "La API está sana",
@@ -50,7 +56,9 @@
         "path": "bash",
         "arguments": "chaos/scripts/stop-tasks.sh 50"
       },
-      "pauses": { "after": 30 }
+      "pauses": {
+        "after": 5
+      }
     },
     {
       "type": "probe",
@@ -59,18 +67,26 @@
         "type": "http",
         "url": "${base_url}/health",
         "timeout": 5
-      },
-      "pauses": { "after": 60 }
+      }
+    },
+    {
+      "type": "action",
+      "name": "esperar-recuperacion-maximo-5-min",
+      "provider": {
+        "type": "process",
+        "path": "bash",
+        "arguments": "chaos/scripts/wait-recovery.sh 300"
+      }
     }
   ],
   "rollbacks": [
     {
       "type": "action",
-      "name": "esperar-a-que-ECS-recupere-el-servicio",
+      "name": "verificar-servicio-estable",
       "provider": {
         "type": "process",
         "path": "bash",
-        "arguments": "chaos/scripts/wait-stable.sh"
+        "arguments": "chaos/scripts/wait-recovery.sh 120"
       }
     }
   ]
