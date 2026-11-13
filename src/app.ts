@@ -5,12 +5,14 @@ import { versionHeaders, APP_VERSION, APP_TRACK, INSTANCE_ID } from './middlewar
 import v1Router from './api/routes/v1/index.ts';
 import v2Router from './api/routes/v2/index.ts';
 import { faultInjection } from './middlewares/fault.ts';
+import { traceIdMiddleware } from './middlewares/trace-id.middleware.ts';
 
 const PORT = process.env.PORT || 3000;
 const startedAt = new Date().toISOString();
 
 const app: Express = express();
 
+app.use(traceIdMiddleware);
 app.use(versionHeaders)
 app.use(faultInjection);
 app.use(express.json())
