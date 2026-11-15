@@ -19,7 +19,7 @@ env:
   TF_INPUT: "false"
   TF_DIR: terraform
   BUILD_CONTEXT: .
-  TF_VAR_chaos_enabled: ${{ vars.CHAOS_ENABLED || 'false' }}
+  TF_VAR_fault_header_enabled: ${{ vars.FAULT_HEADER_ENABLED || 'false' }}
 
 jobs:
   deploy:

@@ -24,8 +24,8 @@ export const options = { scenarios, thresholds: profile.thresholds };
 
 export function faulted() {
   const res = http.get(`${BASE}/api/v2/products`, {
-    headers: { 'x-chaos-token': __ENV.CHAOS_TOKEN, 'x-chaos-fault': fault.header },
+    headers: { 'x-chaos-token': __ENV.CHAOS_TOKEN, 'x-inject-fault': fault.header },
     tags: { chaos: 'true' },
   });
-  check(res, { 'fallo inyectado (503)': (r) => r.status === 503 });
+  check(res, { 'response 200 or 500 injected': (r) => r.status === 200 || r.status === 500 });
 }

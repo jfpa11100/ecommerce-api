@@ -37,7 +37,9 @@ resource "aws_ecs_task_definition" "app" {
     environment = [
       { name = "NODE_ENV", value = "production" },
       { name = "PORT", value = tostring(var.container_port) },
-      { name = "CHAOS_ENABLED", value = tostring(var.chaos_enabled) }
+      { name = "FAULT_HEADER_ENABLED", value = tostring(var.fault_header_enabled) },
+      { name = "FAULT_ERROR_RATE", value = tostring(var.fault_error_rate) },
+      { name = "FAULT_LATENCY_MS", value = tostring(var.fault_latency_ms) }
     ]
 
     # ECS reads secret and exposes it as environment variable DATABASE_URL

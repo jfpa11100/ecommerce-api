@@ -110,7 +110,25 @@ variable "db_init_log_retention_days" {
   default     = 1
 }
 
-variable "chaos_enabled" {
-  type    = bool
-  default = false
+variable "fault_header_enabled" {
+  description = "Activates the fault injection middleware (header X-Inject-Fault)"
+  type        = bool
+  default     = false
+}
+
+variable "fault_error_rate" {
+  description = "Probability (0 to 1) of answering 500 when the header is error"
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.fault_error_rate >= 0 && var.fault_error_rate <= 1
+    error_message = "fault_error_rate must be between 0 and 1."
+  }
+}
+
+variable "fault_latency_ms" {
+  description = "Delay in milliseconds when the header is latency"
+  type        = number
+  default     = 1000
 }
