@@ -19,7 +19,7 @@ export function requestLogger(req: Request, res: Response, next: NextFunction): 
     console.log(
       JSON.stringify({
         timestamp: new Date().toISOString(), // always UTC (ends with "Z")
-        api: apiVersion(route),
+        api: 'pipe',
         traceId: req.traceId,
         method: req.method,
         route,
