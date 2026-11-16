@@ -65,10 +65,13 @@ jobs:
           mkdir -p results
           ENABLE=false
           [ "${{ inputs.experiment }}" = "header-fault" ] && ENABLE=true
-          k6 run chaos/k6/load.js \
-            -e BASE_URL=$BASE_URL -e CHAOS_TOKEN=$CHAOS_TOKEN -e ENABLE_FAULT=$ENABLE \
-            --summary-export results/k6-summary.json > results/k6.log 2>&1 &
-          echo $! > k6.pid
+          (
+            set +e
+            k6 run chaos/k6/load.js \
+              -e BASE_URL=$BASE_URL -e CHAOS_TOKEN=$CHAOS_TOKEN -e ENABLE_FAULT=$ENABLE \
+              --summary-export results/k6-summary.json > results/k6.log 2>&1
+            echo $? > results/k6.exit
+          ) &
 
       - name: Baseline (2 min)
         run: sleep 180
@@ -83,8 +86,23 @@ jobs:
 
       - name: Esperar fin de k6
         if: always()
-        run: wait $(cat k6.pid); echo "k6 terminó con código $?"
+        run: |
+          for i in $(seq 1 180); do          # máximo 15 minutos
+            [ -f results/k6.exit ] && break
+            sleep 5
+          done
 
+          if [ ! -f results/k6.exit ]; then
+            echo "::error::k6 no terminó en 15 minutos"
+            exit 1
+          fi
+
+          CODE=$(cat results/k6.exit)
+          echo "k6 terminó con código $CODE"
+          if [ "$CODE" -ne 0 ]; then
+            echo "::warning::k6 terminó con código $CODE (99 = thresholds superados)"
+            # exit "$CODE"   # descomenta para que el job falle si k6 falla
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
