@@ -4,9 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       experiment:
-        description: "stop-tasks | header-fault"
+        description: "Qué ejecutar"
         required: true
-        default: "stop-tasks"
+        type: choice
+        options: [baseline, stop-tasks, header-fault]
+        default: baseline
+      p95_ms:
+        description: "Umbral de p95 en ms para k6 (vacío = el del perfil)"
+        required: false
+        default: ""
 
 permissions:
   id-token: write
@@ -61,19 +67,24 @@ jobs:
         run: pip install chaostoolkit==1.21.4
 
       - name: Lanzar k6 en segundo plano
+        env:
+          P95_MS: ${{ inputs.p95_ms }}
         run: |
           mkdir -p results
           ENABLE=false
           [ "${{ inputs.experiment }}" = "header-fault" ] && ENABLE=true
+          P95_ARG=""
+          [ -n "$P95_MS" ] && P95_ARG="-e P95_MS=$P95_MS"
           (
             set +e
             k6 run chaos/k6/load.js \
-              -e BASE_URL=$BASE_URL -e CHAOS_TOKEN=$CHAOS_TOKEN -e ENABLE_FAULT=$ENABLE \
+              -e BASE_URL=$BASE_URL -e CHAOS_TOKEN=$CHAOS_TOKEN -e ENABLE_FAULT=$ENABLE $P95_ARG \
               --summary-export results/k6-summary.json > results/k6.log 2>&1
             echo $? > results/k6.exit
           ) &
 
-      - name: Baseline (2 min)
+      - name: Baseline (3 min)
+        if: inputs.experiment == 'stop-tasks'
         run: sleep 180
 
       - name: Experimento stop-tasks (Chaos Toolkit)
