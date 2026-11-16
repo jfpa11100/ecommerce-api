@@ -24,7 +24,6 @@ app.use(express.json())
 app.use('/api/v1', v1Router)
 app.use('/api/v2', v2Router)
 
-app.use(errorHandler)
 
 app.get('/health', (_req, res) => {
   res.status(200).json({status: 'ok'})
@@ -39,5 +38,7 @@ app.get('/version', (_req, res) => {
     apiVersions: ['v1', 'v2', 'v3'],
   })
 })
+
+app.use(errorHandler)
 
 app.listen(PORT);

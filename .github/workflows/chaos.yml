@@ -71,7 +71,7 @@ jobs:
           echo $! > k6.pid
 
       - name: Baseline (2 min)
-        run: sleep 120
+        run: sleep 180
 
       - name: Experimento stop-tasks (Chaos Toolkit)
         if: inputs.experiment == 'stop-tasks'
@@ -83,7 +83,7 @@ jobs:
 
       - name: Esperar fin de k6
         if: always()
-        run: wait $(cat k6.pid) || true
+        run: wait $(cat k6.pid); echo "k6 terminó con código $?"
 
       - uses: actions/upload-artifact@v4
         if: always()

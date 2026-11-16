@@ -6,6 +6,7 @@ function apiVersion(path: string): string {
 }
 
 export function requestLogger(req: Request, res: Response, next: NextFunction): void {
+  if (req.path === '/health') return next();
   const start = process.hrtime.bigint();
   let logged = false;
 
