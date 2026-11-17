@@ -58,7 +58,7 @@ variable "task_memory" {
 variable "desired_count" {
   description = "Number of tasks (containers) running"
   type        = number
-  default     = 4
+  default     = 2
 }
 
 # ---------- Base de datos ----------
