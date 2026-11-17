@@ -1,0 +1,369 @@
+{
+  "chaoslib-version": "1.45.1",
+  "platform": "Linux-7.0.0-1019-azure-x86_64-with-glibc2.43",
+  "node": "runnervmccnms",
+  "experiment": {
+    "version": "1.0.0",
+    "title": "La API tolera la caída del 50% de sus tareas",
+    "description": "Hipótesis: si se detiene la mitad de las tareas ECS, la API sigue respondiendo y el servicio se recupera sin disparar la alarma de aborto.",
+    "tags": [
+      "ecs",
+      "tolerancia-a-fallos"
+    ],
+    "configuration": {
+      "base_url": {
+        "type": "env",
+        "key": "BASE_URL"
+      }
+    },
+    "steady-state-hypothesis": {
+      "title": "La API está sana",
+      "probes": [
+        {
+          "type": "probe",
+          "name": "health-responde-200",
+          "tolerance": 200,
+          "provider": {
+            "type": "http",
+            "url": "${base_url}/health",
+            "timeout": 5
+          }
+        },
+        {
+          "type": "probe",
+          "name": "todas-las-tareas-corriendo",
+          "tolerance": 0,
+          "provider": {
+            "type": "process",
+            "path": "bash",
+            "arguments": "chaos/scripts/check-running.sh"
+          }
+        },
+        {
+          "type": "probe",
+          "name": "alarma-de-aborto-en-OK",
+          "tolerance": 0,
+          "provider": {
+            "type": "process",
+            "path": "bash",
+            "arguments": "chaos/scripts/check-alarm.sh"
+          }
+        }
+      ]
+    },
+    "method": [
+      {
+        "type": "action",
+        "name": "detener-50-por-ciento-de-tareas",
+        "provider": {
+          "type": "process",
+          "path": "bash",
+          "arguments": "chaos/scripts/stop-tasks.sh 50"
+        },
+        "pauses": {
+          "after": 5
+        }
+      },
+      {
+        "type": "probe",
+        "name": "health-durante-el-fallo",
+        "provider": {
+          "type": "http",
+          "url": "${base_url}/health",
+          "timeout": 5
+        }
+      },
+      {
+        "type": "action",
+        "name": "esperar-recuperacion-maximo-5-min",
+        "provider": {
+          "type": "process",
+          "path": "bash",
+          "arguments": "chaos/scripts/wait-recovery.sh 300"
+        }
+      }
+    ],
+    "rollbacks": [
+      {
+        "type": "action",
+        "name": "verificar-servicio-estable",
+        "provider": {
+          "type": "process",
+          "path": "bash",
+          "arguments": "chaos/scripts/wait-recovery.sh 120"
+        }
+      }
+    ],
+    "dry": null
+  },
+  "start": "2026-11-17T13:20:56.137938+00:00",
+  "status": "completed",
+  "deviated": false,
+  "steady_states": {
+    "before": {
+      "steady_state_met": true,
+      "probes": [
+        {
+          "activity": {
+            "type": "probe",
+            "name": "health-responde-200",
+            "tolerance": 200,
+            "provider": {
+              "type": "http",
+              "url": "${base_url}/health",
+              "timeout": 5
+            }
+          },
+          "output": {
+            "status": 200,
+            "headers": {
+              "Date": "Tue, 17 Nov 2026 13:20:56 GMT",
+              "Content-Type": "application/json; charset=utf-8",
+              "Content-Length": "15",
+              "Connection": "keep-alive",
+              "X-Powered-By": "Express",
+              "x-trace-id": "1d6b8a49-faa6-401d-a801-c525aeaabe20",
+              "X-App-Version": "dev",
+              "X-App-Name": "pipe",
+              "X-App-Instance": "ip-10-0-11-230.us-east-2.compute.internal",
+              "ETag": "W/\"f-VaSQ4oDUiZblZNAEkkN+sX+q3Sg\""
+            },
+            "body": "{\"status\":\"ok\"}"
+          },
+          "start": "2026-11-17T13:20:56.138296+00:00",
+          "status": "succeeded",
+          "end": "2026-11-17T13:20:56.284120+00:00",
+          "duration": 0.145824,
+          "tolerance_met": true
+        },
+        {
+          "activity": {
+            "type": "probe",
+            "name": "todas-las-tareas-corriendo",
+            "tolerance": 0,
+            "provider": {
+              "type": "process",
+              "path": "bash",
+              "arguments": "chaos/scripts/check-running.sh"
+            }
+          },
+          "output": {
+            "status": 0,
+            "stdout": "running=4 desired=4\n",
+            "stderr": ""
+          },
+          "start": "2026-11-17T13:20:56.284307+00:00",
+          "status": "succeeded",
+          "end": "2026-11-17T13:20:57.302372+00:00",
+          "duration": 1.018065,
+          "tolerance_met": true
+        },
+        {
+          "activity": {
+            "type": "probe",
+            "name": "alarma-de-aborto-en-OK",
+            "tolerance": 0,
+            "provider": {
+              "type": "process",
+              "path": "bash",
+              "arguments": "chaos/scripts/check-alarm.sh"
+            }
+          },
+          "output": {
+            "status": 0,
+            "stdout": "alarma=OK\n",
+            "stderr": ""
+          },
+          "start": "2026-11-17T13:20:57.302512+00:00",
+          "status": "succeeded",
+          "end": "2026-11-17T13:20:58.227487+00:00",
+          "duration": 0.924975,
+          "tolerance_met": true
+        }
+      ]
+    },
+    "after": {
+      "steady_state_met": true,
+      "probes": [
+        {
+          "activity": {
+            "type": "probe",
+            "name": "health-responde-200",
+            "tolerance": 200,
+            "provider": {
+              "type": "http",
+              "url": "${base_url}/health",
+              "timeout": 5
+            }
+          },
+          "output": {
+            "status": 200,
+            "headers": {
+              "Date": "Tue, 17 Nov 2026 13:22:23 GMT",
+              "Content-Type": "application/json; charset=utf-8",
+              "Content-Length": "15",
+              "Connection": "keep-alive",
+              "X-Powered-By": "Express",
+              "x-trace-id": "79e9c367-ba49-4db8-a50e-7f1b3c9e8004",
+              "X-App-Version": "dev",
+              "X-App-Name": "pipe",
+              "X-App-Instance": "ip-10-0-10-194.us-east-2.compute.internal",
+              "ETag": "W/\"f-VaSQ4oDUiZblZNAEkkN+sX+q3Sg\""
+            },
+            "body": "{\"status\":\"ok\"}"
+          },
+          "start": "2026-11-17T13:22:23.387704+00:00",
+          "status": "succeeded",
+          "end": "2026-11-17T13:22:23.520182+00:00",
+          "duration": 0.132478,
+          "tolerance_met": true
+        },
+        {
+          "activity": {
+            "type": "probe",
+            "name": "todas-las-tareas-corriendo",
+            "tolerance": 0,
+            "provider": {
+              "type": "process",
+              "path": "bash",
+              "arguments": "chaos/scripts/check-running.sh"
+            }
+          },
+          "output": {
+            "status": 0,
+            "stdout": "running=4 desired=4\n",
+            "stderr": ""
+          },
+          "start": "2026-11-17T13:22:23.520333+00:00",
+          "status": "succeeded",
+          "end": "2026-11-17T13:22:24.470657+00:00",
+          "duration": 0.950324,
+          "tolerance_met": true
+        },
+        {
+          "activity": {
+            "type": "probe",
+            "name": "alarma-de-aborto-en-OK",
+            "tolerance": 0,
+            "provider": {
+              "type": "process",
+              "path": "bash",
+              "arguments": "chaos/scripts/check-alarm.sh"
+            }
+          },
+          "output": {
+            "status": 0,
+            "stdout": "alarma=OK\n",
+            "stderr": ""
+          },
+          "start": "2026-11-17T13:22:24.470795+00:00",
+          "status": "succeeded",
+          "end": "2026-11-17T13:22:25.284588+00:00",
+          "duration": 0.813793,
+          "tolerance_met": true
+        }
+      ]
+    },
+    "during": []
+  },
+  "run": [
+    {
+      "activity": {
+        "type": "action",
+        "name": "detener-50-por-ciento-de-tareas",
+        "provider": {
+          "type": "process",
+          "path": "bash",
+          "arguments": "chaos/scripts/stop-tasks.sh 50"
+        },
+        "pauses": {
+          "after": 5
+        }
+      },
+      "output": {
+        "status": 0,
+        "stdout": "Tarea detenida: arn:aws:ecs:us-east-2:851725429165:task/ecommerce-api-dev-cluster/a59ecf01fe314d69b44e5de7ddb5afb5\nTarea detenida: arn:aws:ecs:us-east-2:851725429165:task/ecommerce-api-dev-cluster/090289fbd6314596939cfd79c3286b13\n",
+        "stderr": ""
+      },
+      "start": "2026-11-17T13:20:58.227730+00:00",
+      "status": "succeeded",
+      "end": "2026-11-17T13:21:00.710829+00:00",
+      "duration": 2.483099
+    },
+    {
+      "activity": {
+        "type": "probe",
+        "name": "health-durante-el-fallo",
+        "provider": {
+          "type": "http",
+          "url": "${base_url}/health",
+          "timeout": 5
+        }
+      },
+      "output": {
+        "status": 200,
+        "headers": {
+          "Date": "Tue, 17 Nov 2026 13:21:05 GMT",
+          "Content-Type": "application/json; charset=utf-8",
+          "Content-Length": "15",
+          "Connection": "keep-alive",
+          "X-Powered-By": "Express",
+          "x-trace-id": "99b39b2b-322a-49f1-9941-5933c6b5c2d1",
+          "X-App-Version": "dev",
+          "X-App-Name": "pipe",
+          "X-App-Instance": "ip-10-0-11-230.us-east-2.compute.internal",
+          "ETag": "W/\"f-VaSQ4oDUiZblZNAEkkN+sX+q3Sg\""
+        },
+        "body": "{\"status\":\"ok\"}"
+      },
+      "start": "2026-11-17T13:21:05.711186+00:00",
+      "status": "succeeded",
+      "end": "2026-11-17T13:21:05.844800+00:00",
+      "duration": 0.133614
+    },
+    {
+      "activity": {
+        "type": "action",
+        "name": "esperar-recuperacion-maximo-5-min",
+        "provider": {
+          "type": "process",
+          "path": "bash",
+          "arguments": "chaos/scripts/wait-recovery.sh 300"
+        }
+      },
+      "output": {
+        "status": 0,
+        "stdout": "t=1s running=2 desired=4\nt=12s running=2 desired=4\nt=23s running=2 desired=4\nt=34s running=2 desired=4\nt=45s running=2 desired=4\nt=56s running=2 desired=4\nt=67s running=3 desired=4\nt=78s running=4 desired=4\nRecuperado en 78s\n",
+        "stderr": ""
+      },
+      "start": "2026-11-17T13:21:05.844912+00:00",
+      "status": "succeeded",
+      "end": "2026-11-17T13:22:23.387440+00:00",
+      "duration": 77.542528
+    }
+  ],
+  "rollbacks": [
+    {
+      "activity": {
+        "type": "action",
+        "name": "verificar-servicio-estable",
+        "provider": {
+          "type": "process",
+          "path": "bash",
+          "arguments": "chaos/scripts/wait-recovery.sh 120"
+        }
+      },
+      "output": {
+        "status": 0,
+        "stdout": "t=1s running=4 desired=4\nRecuperado en 1s\n",
+        "stderr": ""
+      },
+      "start": "2026-11-17T13:22:25.284858+00:00",
+      "status": "succeeded",
+      "end": "2026-11-17T13:22:26.255156+00:00",
+      "duration": 0.970298
+    }
+  ],
+  "end": "2026-11-17T13:22:26.255232+00:00",
+  "duration": 90.12033438682556
+}

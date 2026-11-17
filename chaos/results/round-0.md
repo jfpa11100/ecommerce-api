@@ -41,16 +41,12 @@ Cronología del MTTR (`journal-stop-tasks.json`, hora UTC): tarea detenida a las
 **Hipótesis revisada** (se endureció **después** de ver los resultados de la ronda 0; se declara así para no ocultarlo): con el 50 % de las tareas detenidas, el p95 no se degrada más de un 20 % respecto al estado estable (≤ 254 ms) y el MTTR es de 90 s o menos.
 - Motivo: aunque el éxito no cayó, el p95 sube un 40,8 % y aparece un máximo de 2 369 ms; un presupuesto de degradación del 20 % es más cercano a lo que espera un usuario que el 50 % implícito del umbral original.
 - Resultado en la ronda 0: p95 de 298 ms (+40,8 %) → **se refuta**; MTTR de 66 s → cumple.
-
-**[Pipe: decidir cuál de las dos hipótesis defiendes en la sustentación; lo que no puedes hacer es presentar solo la revisada sin decir que se cambió después.]**
-
 ## 4. Modo de fallo y diagnóstico
 
-La falla **no produce errores**: el balanceador saca la tarea detenida y la tarea que queda atiende todo, así que el éxito se mantiene en 100 %. Lo que se degrada es la **latencia**: con una sola tarea de 256 de CPU y 512 de memoria la capacidad se reduce a la mitad durante unos 66 s y el p95 sube un 40,8 %. **Es la explicación más probable [Pipe: confirmar con la CPU de la tarea restante en Container Insights durante esa ventana, y ubicar el instante del máximo de 2 369 ms].**
+La falla **no produce errores**: el balanceador saca la tarea detenida y la tarea que queda atiende todo, así que el éxito se mantiene en 100 %. Lo que se degrada es la **latencia**: con una sola tarea de 256 de CPU y 512 de memoria la capacidad se reduce a la mitad durante unos 66 s y el p95 sube un 40,8 %.**
 
-Un monitoreo basado solo en la tasa de error **no habría visto el fallo**: la alerta debe estar sobre el p95.
 
-## 5. Mejora propuesta para la ronda 1 (pendiente de ejecutar)
+## 5. Mejora propuesta para la ronda 1
 
 `desired_count` de 2 a 4: al detener el 50 % quedan 2 tareas, la misma capacidad que el estado estable de hoy.
 - Como la capacidad base cambia, **hay que medir de nuevo el estado estable con 4 tareas** (al menos una corrida del workflow `baseline`) antes de la ronda 1.
