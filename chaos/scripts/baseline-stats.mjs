@@ -20,7 +20,6 @@ const rows = files.map((file) => {
     peticiones: m.http_reqs.count,
     exito_pct: Number(((1 - m.http_req_failed.value) * 100).toFixed(3)),
     p95_ms: Number(dur['p(95)'].toFixed(2)),
-    p99_ms: Number(dur['p(99)'].toFixed(2)),
   };
 });
 
