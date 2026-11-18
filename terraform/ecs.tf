@@ -43,7 +43,8 @@ resource "aws_ecs_task_definition" "app" {
       { name = "OTEL_EXPORTER_OTLP_ENDPOINT", value = var.grafana_otlp_endpoint },
       { name = "OTEL_SERVICE_NAME", value = var.otel_service_name },
       { name = "DEPLOYMENT_ENVIRONMENT", value = var.environment },
-      { name = "GRAFANA_INSTANCE_ID", value = var.grafana_instance_id }
+      { name = "GRAFANA_INSTANCE_ID", value = var.grafana_instance_id },
+      { name = "OTEL_DIAG", value = "true" }
     ]
 
     # ECS reads secret and exposes it as environment variable DATABASE_URL

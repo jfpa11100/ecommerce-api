@@ -1,11 +1,15 @@
 import { randomUUID } from 'node:crypto';
-import { metrics } from '@opentelemetry/api';
 import { MeterProvider, PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-proto';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { RuntimeNodeInstrumentation } from '@opentelemetry/instrumentation-runtime-node';
+import { diag, DiagConsoleLogger, DiagLogLevel, metrics } from '@opentelemetry/api';
+
+if (process.env.OTEL_DIAG === 'true') {
+  diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
+}
 
 const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
 const instanceId = process.env.GRAFANA_INSTANCE_ID;
@@ -40,6 +44,16 @@ if (endpoint && instanceId && token) {
     meterProvider,
   });
 }
+
+console.log(
+  JSON.stringify({
+    telemetry: meterProvider ? 'enabled' : 'disabled',
+    hasEndpoint: Boolean(endpoint),
+    hasInstanceId: Boolean(instanceId),
+    hasToken: Boolean(token),
+    service: process.env.OTEL_SERVICE_NAME,
+  }),
+);
 
 const meter = metrics.getMeter('ecommerce-api');
 
