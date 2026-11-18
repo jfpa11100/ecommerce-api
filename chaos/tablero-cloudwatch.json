@@ -1,0 +1,12 @@
+{ "start": "-PT72H", "widgets": [
+ { "type": "metric", "x": 0, "y": 0, "width": 12, "height": 6, "properties": { "title": "Latencia p95 del ALB (ms×1000)", "region": "us-east-2", "period": 60, "stat": "p95",
+   "metrics": [ ["AWS/ApplicationELB","TargetResponseTime","LoadBalancer","app/ecommerce-api-dev-alb/71da3572fe7903e7"] ] } },
+ { "type": "metric", "x": 12, "y": 0, "width": 12, "height": 6, "properties": { "title": "Errores 5xx", "region": "us-east-2", "period": 60, "stat": "Sum",
+   "metrics": [ ["AWS/ApplicationELB","HTTPCode_Target_5XX_Count","LoadBalancer","app/ecommerce-api-dev-alb/71da3572fe7903e7"], [".","HTTPCode_ELB_5XX_Count",".","."] ] } },
+ { "type": "metric", "x": 0, "y": 6, "width": 12, "height": 6, "properties": { "title": "Tareas en ejecución (ventana de la falla: baja y se recupera)", "region": "us-east-2", "period": 60, "stat": "Average",
+   "metrics": [ ["ECS/ContainerInsights","RunningTaskCount","ClusterName","ecommerce-api-dev-cluster","ServiceName","ecommerce-api-dev-service"] ] } },
+ { "type": "metric", "x": 12, "y": 6, "width": 12, "height": 6, "properties": { "title": "CPU del servicio", "region": "us-east-2", "period": 60, "stat": "Maximum",
+   "metrics": [ ["AWS/ECS","CPUUtilization","ClusterName","ecommerce-api-dev-cluster","ServiceName","ecommerce-api-dev-service"] ] } },
+ { "type": "log", "x": 0, "y": 12, "width": 24, "height": 6, "properties": { "title": "p95 por minuto desde el log de la API", "region": "us-east-2", "view": "timeSeries",
+   "query": "SOURCE '/ecs/ecommerce-api-dev' | filter ispresent(route) | stats pct(ms,95) as p95 by bin(1m)" } }
+] }
