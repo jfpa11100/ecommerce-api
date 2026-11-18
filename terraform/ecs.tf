@@ -39,13 +39,18 @@ resource "aws_ecs_task_definition" "app" {
       { name = "PORT", value = tostring(var.container_port) },
       { name = "FAULT_HEADER_ENABLED", value = tostring(var.fault_header_enabled) },
       { name = "FAULT_ERROR_RATE", value = tostring(var.fault_error_rate) },
-      { name = "FAULT_LATENCY_MS", value = tostring(var.fault_latency_ms) }
+      { name = "FAULT_LATENCY_MS", value = tostring(var.fault_latency_ms) },
+      { name = "OTEL_EXPORTER_OTLP_ENDPOINT", value = var.grafana_otlp_endpoint },
+      { name = "OTEL_SERVICE_NAME", value = var.otel_service_name },
+      { name = "DEPLOYMENT_ENVIRONMENT", value = var.environment },
+      { name = "GRAFANA_INSTANCE_ID", value = var.grafana_instance_id }
     ]
 
     # ECS reads secret and exposes it as environment variable DATABASE_URL
     secrets = [
       { name = "DATABASE_URL", valueFrom = aws_secretsmanager_secret.db_url.arn },
-      { name = "CHAOS_TOKEN", valueFrom = aws_secretsmanager_secret.chaos_token.arn }
+      { name = "CHAOS_TOKEN", valueFrom = aws_secretsmanager_secret.chaos_token.arn },
+      { name = "GRAFANA_OTLP_TOKEN", valueFrom = aws_secretsmanager_secret.grafana_otlp_token.arn }
     ]
 
     logConfiguration = {

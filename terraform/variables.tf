@@ -132,3 +132,27 @@ variable "fault_latency_ms" {
   type        = number
   default     = 1000
 }
+
+variable "grafana_otlp_endpoint" {
+  description = "Grafana Cloud OTLP gateway endpoint"
+  type        = string
+  default     = "https://otlp-gateway-prod-us-east-6.grafana.net/otlp"
+}
+
+variable "grafana_instance_id" {
+  description = "Grafana Cloud instance ID (OTLP user)"
+  type        = string
+  default     = "1926427"
+}
+
+variable "grafana_otlp_token" {
+  description = "Grafana Cloud OTLP token"
+  type        = string
+  sensitive   = true
+}
+
+variable "otel_service_name" {
+  description = "service.name reported in telemetry"
+  type        = string
+  default     = "ecommerce-api"
+}

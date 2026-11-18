@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import './telemetry/otel.ts';
 import express, { type Express } from 'express';
 import { errorHandler } from './middlewares/error-handler.ts';
 import { versionHeaders, APP_VERSION, APP_TRACK, INSTANCE_ID } from './middlewares/version-headers.ts';
@@ -7,6 +8,7 @@ import v2Router from './api/routes/v2/index.ts';
 import { faultInjection } from './middlewares/fault.ts';
 import { traceIdMiddleware } from './middlewares/trace-id.middleware.ts';
 import { requestLogger } from './middlewares/request-logger.ts';
+import { shutdownTelemetry } from './telemetry/otel.ts';
 
 const PORT = process.env.PORT || 3000;
 const startedAt = new Date().toISOString();
@@ -42,3 +44,8 @@ app.get('/version', (_req, res) => {
 app.use(errorHandler)
 
 app.listen(PORT);
+for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+  process.on(signal, () => {
+    shutdownTelemetry().finally(() => process.exit(0));
+  });
+}

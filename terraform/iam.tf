@@ -52,6 +52,20 @@ resource "aws_iam_role_policy" "ecs_execution_chaos_secret" {
   })
 }
 
+resource "aws_iam_role_policy" "ecs_execution_grafana_secret" {
+  name = "grafana-otlp-token-secret"
+  role = aws_iam_role.ecs_execution.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["secretsmanager:GetSecretValue"]
+      Resource = [aws_secretsmanager_secret.grafana_otlp_token.arn]
+    }]
+  })
+}
+
 # Task Role
 resource "aws_iam_role" "ecs_task" {
   name               = "${var.project_name}-${var.environment}-ecs-task"

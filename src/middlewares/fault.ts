@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
+import { faultInjected } from '../telemetry/otel.ts';
 
 const HEADER = 'x-inject-fault';
 
@@ -25,6 +26,7 @@ export function faultInjection(req: Request, res: Response, next: NextFunction):
   if (fault === 'latency') {
     const ms = clamp(readNumber(process.env.FAULT_LATENCY_MS, 0), 0, 10000);
     console.log(JSON.stringify({ chaos: true, fault, latencyMs: ms, path: req.path, traceId: req.traceId }));
+    faultInjected.add(1, { 'fault.type': fault });
     setTimeout(next, ms);
     return;
   }
@@ -32,6 +34,7 @@ export function faultInjection(req: Request, res: Response, next: NextFunction):
   const rate = clamp(readNumber(process.env.FAULT_ERROR_RATE, 1), 0, 1);
   if (Math.random() < rate) {
     console.log(JSON.stringify({ chaos: true, fault, rate, path: req.path, traceId: req.traceId }));
+    faultInjected.add(1, { 'fault.type': fault });
     res.status(500).json({ error: 'fault-injected' });
     return;
   }

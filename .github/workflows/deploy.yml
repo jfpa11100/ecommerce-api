@@ -25,6 +25,7 @@ env:
   TF_DIR: terraform
   BUILD_CONTEXT: .
   TF_VAR_fault_header_enabled: ${{ vars.FAULT_HEADER_ENABLED || 'false' }}
+  TF_VAR_grafana_otlp_token: ${{ secrets.GRAFANA_OTLP_TOKEN }}
 
 jobs:
   deploy:

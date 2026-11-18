@@ -1,3 +1,4 @@
+import { httpDuration, httpActive } from '../telemetry/otel.ts';
 import type { NextFunction, Request, Response } from 'express';
 
 function apiVersion(path: string): string {
@@ -9,6 +10,7 @@ export function requestLogger(req: Request, res: Response, next: NextFunction): 
   if (req.path === '/health') return next();
   const start = process.hrtime.bigint();
   let logged = false;
+  httpActive.add(1);
 
   const log = (): void => {
     if (logged) return;
@@ -16,6 +18,14 @@ export function requestLogger(req: Request, res: Response, next: NextFunction): 
 
     const ms = Number(process.hrtime.bigint() - start) / 1e6;
     const route = req.originalUrl.split('?')[0];
+
+    const routeLabel = req.route ? `${req.baseUrl}${req.route.path}` : 'unmatched';
+    httpActive.add(-1);
+    httpDuration.record(ms / 1000, {
+      'http.request.method': req.method,
+      'http.route': routeLabel,
+      'http.response.status_code': res.statusCode,
+    });
 
     console.log(
       JSON.stringify({
