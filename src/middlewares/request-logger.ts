@@ -1,3 +1,4 @@
+import { trace } from '@opentelemetry/api';
 import { httpDuration, httpActive } from '../telemetry/otel.ts';
 import type { NextFunction, Request, Response } from 'express';
 
@@ -27,11 +28,14 @@ export function requestLogger(req: Request, res: Response, next: NextFunction): 
       'http.response.status_code': res.statusCode,
     });
 
+    const activeSpan = trace.getActiveSpan();
+    const traceId = activeSpan?.spanContext().traceId ?? req.traceId;
+
     console.log(
       JSON.stringify({
         timestamp: new Date().toISOString(), // always UTC (ends with "Z")
         api: 'pipe',
-        traceId: req.traceId,
+        traceId: traceId,
         method: req.method,
         route,
         status: res.statusCode,
