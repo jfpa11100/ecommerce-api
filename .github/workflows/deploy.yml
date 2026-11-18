@@ -6,6 +6,7 @@ on:
     paths-ignore:
       - '**.md'
       - 'chaos/**'
+      - 'seguridad/**'
       - '.github/workflows/chaos.yml'
   workflow_dispatch:
 
