@@ -11,15 +11,21 @@ if (process.env.OTEL_DIAG === 'true') {
   diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
 }
 
-const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
-const instanceId = process.env.GRAFANA_INSTANCE_ID;
-const token = process.env.GRAFANA_OTLP_TOKEN;
+const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT?.trim();
+const instanceId = process.env.GRAFANA_INSTANCE_ID?.trim();
+const token = process.env.GRAFANA_OTLP_TOKEN?.trim();
 
 let meterProvider: MeterProvider | undefined;
 
 // Si faltan las variables (por ejemplo, en local) las métricas quedan inactivas y la API funciona igual
 if (endpoint && instanceId && token) {
-  const auth = Buffer.from(`${instanceId}:${token}`).toString('base64');
+  const baseEndpoint = endpoint.replace(/\/+$/, '');
+
+  // Permite utilizar tanto el endpoint base como la URL completa de métricas.
+  const metricsEndpoint = baseEndpoint.endsWith('/v1/metrics')
+    ? baseEndpoint
+    : `${baseEndpoint}/v1/metrics`;
+  const auth = Buffer.from(`${instanceId}:${token}`, 'utf-8').toString('base64');
 
   meterProvider = new MeterProvider({
     resource: resourceFromAttributes({
@@ -30,7 +36,7 @@ if (endpoint && instanceId && token) {
     readers: [
       new PeriodicExportingMetricReader({
         exporter: new OTLPMetricExporter({
-          url: `${endpoint.replace(/\/$/, '')}/v1/metrics`,
+          url: metricsEndpoint,
           headers: { Authorization: `Basic ${auth}` },
         }),
         exportIntervalMillis: 15_000,
