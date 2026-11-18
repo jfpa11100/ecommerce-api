@@ -72,6 +72,7 @@ resource "aws_ecs_service" "app" {
   desired_count         = var.desired_count
   launch_type           = "FARGATE"
   wait_for_steady_state = true
+  enable_execute_command = true
 
   deployment_circuit_breaker {
     enable   = true
