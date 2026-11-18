@@ -186,6 +186,18 @@ pnpm test
 
 ---
 
+---
+
+## 🧪 Chaos & security experiments
+
+- Chaos (v5.0.0): chaos/ (k6 profile, stop-tasks experiment, results in chaos/results/). Stopping 50% of tasks: p95 of 298 ms; with 4 tasks, 173 ms.
+
+- Security (v5.1.0): seguridad/ (commitment rules, inventory, telemetry and AI experiment 3, detection). Alert triggered in 59 seconds.
+
+- Team Report: https://github.com/JuanPa28/trading-journal-api/releases/tag/v5.1.0
+
+---
+
 ## 👥 Author
 
 | Name | GitHub | Role |
